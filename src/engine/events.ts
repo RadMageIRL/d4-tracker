@@ -52,6 +52,10 @@ export interface EventDetails {
   location: Fact<string>;
   /** Which boss, for the World Boss; not used by the other events. */
   identity?: Fact<string>;
+  /** Legion: the possible sites when only their group is predicted (folded away on the card). */
+  candidates?: { place: string; region: string }[];
+  /** Legion: an expansion-region Legion seen at the same time, shown beside the candidates. */
+  also?: string;
 }
 
 export type Phase = 'active' | 'waiting' | 'unknown';

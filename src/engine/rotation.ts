@@ -9,11 +9,14 @@
 // Every fourth spawn brings a second boss in an expansion region; those regions take turns, pinned
 // the same way. Which boss it is, is not predicted.
 //
+// Helltide regions use a plain Cycle (below): one step per hour, base-game and expansion apart.
+//
 // Type-only imports: local scripts load this file directly with Node.
 
 export interface RotationStep {
   boss: string;
-  region: string;
+  /** The arena's region, only where an arena order is known (none is today). */
+  region?: string;
 }
 
 export interface Pin {
@@ -88,6 +91,23 @@ function walk(pin: Pin, sightings: Sighted[], periodMs: number, n: number, fits:
     pin = { startMs: s.startMs, position: options.includes(expected) ? expected : nearest(options, expected, n) };
   }
   return pin;
+}
+
+/**
+ * A plain cycle of values, one step per occurrence, pinned the same way: a Helltide region, or null
+ * where no Helltide of that kind runs (an expansion Helltide every other hour). Unlike the World
+ * Boss rotation it is not re-pinned by sightings: a mark corrects its own hour only.
+ */
+export interface Cycle {
+  values: (string | null)[];
+  pin: Pin;
+}
+
+/** The value at startMs; null before the pin, off its grid, or where the cycle has none. */
+export function cycleAt(c: Cycle, startMs: number, periodMs: number): string | null {
+  const k = stepsBetween(c.pin.startMs, startMs, periodMs);
+  if (k === null || k < 0) return null;
+  return c.values[mod(c.pin.position + k, c.values.length)] ?? null;
 }
 
 /**

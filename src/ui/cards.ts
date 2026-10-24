@@ -4,7 +4,7 @@ import type { Claim, Confidence } from '../data/schema';
 import { agoWords, clockTime, countdown, dayLabel, spanWords, type ClockStyle } from '../engine/format';
 import type { EventKind, EventStatus, TimedSegment } from '../engine/events';
 import type { Fact } from '../engine/facts';
-import { h, nodes, setText } from './dom';
+import { h, nodes, s, setText } from './dom';
 
 export interface ViewContext {
   nowMs: number;
@@ -41,6 +41,18 @@ export interface OrderNote {
   status?: string;
 }
 
+/**
+ * How long before a spawn the in-game map marks where it will be, so the card can point there.
+ * Approximate, from in-game checks on 2026-10-24: a World Boss marked with 56 minutes to go, Legions
+ * with 9 to 10 minutes to go.
+ */
+const MAP_SHOWN_AHEAD_MS: Partial<Record<EventKind, number>> = { worldBoss: 60 * 60000, legion: 10 * 60000 };
+/** What the game shows then: a World Boss's boss as well as its arena. */
+const MAP_HINT_TEXT: Partial<Record<EventKind, string>> = {
+  worldBoss: 'Check in-game map for boss and location',
+  legion: 'Check in-game map for exact location',
+};
+
 // soonMs: how close the next start must be for the card to say Soon instead of Next.
 const WORDS: Record<EventKind, { starts: string; locationLabel: string; soonMs: number }> = {
   helltide: { starts: 'begins', locationLabel: 'Region', soonMs: 5 * 60000 },
@@ -72,6 +84,12 @@ interface FactRow {
   dd: HTMLElement;
   value: HTMLElement;
   hint: HTMLElement;
+}
+
+/** Show or hide a whole row, its label included. */
+function showRow(row: FactRow, on: boolean): void {
+  row.dd.hidden = !on;
+  (row.dd.previousElementSibling as HTMLElement).hidden = !on;
 }
 
 function factRow(dl: HTMLElement, label: string): FactRow {
@@ -121,6 +139,11 @@ export class EventCard {
   private pill = h('span', { class: 'pill' });
   private big = h('div', { class: 'big' });
   private bigLabel = h('div', { class: 'big-label' });
+  /** Once the in-game map marks where the coming spawn will be. */
+  private mapHint = h('p', { class: 'map-hint', hidden: true },
+    s('svg', { viewBox: '0 0 24 24', 'aria-hidden': 'true' },
+      s('path', { d: 'M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z' })),
+    h('span', {}, ''));
   private bar = h('span', {});
   private lastProgress = 0;
   private dl = h('dl', { class: 'facts' });
@@ -128,6 +151,12 @@ export class EventCard {
   private lastRow: FactRow | null;
   private identityRow: FactRow | null;
   private locationRow: FactRow;
+  /** Legion: the possible sites, folded away, when only their group is predicted. */
+  private candidatesLabel = h('span', {});
+  private candidatesAlso = h('span', { class: 'hint' });
+  private candidatesList = h('ul', {});
+  private candidates = h('details', { class: 'candidates' },
+    h('summary', {}, this.candidatesLabel, h('span', { class: 'hint' }, ' · predicted'), this.candidatesAlso), this.candidatesList);
   private extraRow: FactRow | null;
   private list = h('ul', { class: 'next-list', 'aria-label': 'Later' });
   private predictions = h('ul', {});
@@ -149,7 +178,7 @@ export class EventCard {
     this.logLink.addEventListener('click', opts.onLog);
     this.el = h('article', { class: 'panel event', 'data-kind': kind, 'aria-labelledby': headId },
       h('div', { class: 'event-head' }, h('h2', { id: headId }, title), this.pill),
-      h('div', {}, this.big, this.bigLabel),
+      h('div', {}, this.big, this.bigLabel, this.mapHint),
       h('div', { class: 'progress', 'aria-hidden': 'true' }, this.bar),
       this.dl,
       this.list,
@@ -195,6 +224,9 @@ export class EventCard {
       this.setProgress(st.progress ?? 0);
       showFact(this.nextRow, { known: true, value: when(st.next.startMs, ctx), source: '' });
     }
+    const shownAhead = MAP_SHOWN_AHEAD_MS[this.kind];
+    setText(this.mapHint.lastChild as HTMLElement, MAP_HINT_TEXT[this.kind] ?? '');
+    this.mapHint.hidden = !(st.phase === 'waiting' && shownAhead !== undefined && st.msToNext !== null && st.msToNext > 0 && st.msToNext <= shownAhead);
 
     // Instant events (a spawn with no known window) show how long ago the last one started.
     if (this.lastRow && st.previous) {
@@ -205,6 +237,10 @@ export class EventCard {
 
     if (this.identityRow) showFact(this.identityRow, st.details.identity);
     showFact(this.locationRow, st.details.location);
+    this.showCandidates(st.details.candidates, st.details.also);
+    // Nothing known yet: the row waits until there is (the reason is under About this card).
+    if (this.identityRow) showRow(this.identityRow, !!st.details.identity?.known);
+    showRow(this.locationRow, st.details.location.known || !!st.details.candidates?.length);
     if (this.extraRow) {
       const x = extras.extra;
       for (const el of [this.extraRow.dd, this.extraRow.dd.previousElementSibling as HTMLElement]) el.hidden = !x;
@@ -227,6 +263,25 @@ export class EventCard {
     setText(this.notice, def.notice ?? '');
     this.notice.hidden = !def.notice;
     this.renderTrust(st, extras);
+  }
+
+  /** The candidate sites in place of a one-line location: "4 candidates · predicted", opened for the list. */
+  private showCandidates(list: { place: string; region: string }[] | undefined, also: string | undefined): void {
+    const on = !!list?.length;
+    // In the row only while it has something to show, so the row's text is just what is shown.
+    if (on && !this.candidates.isConnected) this.locationRow.dd.append(this.candidates);
+    if (!on) this.candidates.remove();
+    this.locationRow.value.hidden = on;
+    this.locationRow.hint.hidden = on;
+    if (!list?.length) return;
+    setText(this.locationRow.value, '');
+    setText(this.locationRow.hint, '');
+    setText(this.candidatesLabel, `${list.length} candidates`);
+    setText(this.candidatesAlso, also ? ` · also ${also} (seen)` : '');
+    const items = list.map((c) => `${c.place}, ${c.region}`);
+    if ([...this.candidatesList.children].map((li) => li.textContent).join('|') !== items.join('|')) {
+      this.candidatesList.replaceChildren(...items.map((t) => h('li', {}, t)));
+    }
   }
 
   private renderTrust(st: EventStatus, extras: CardExtras): void {

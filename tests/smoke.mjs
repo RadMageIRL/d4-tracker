@@ -124,9 +124,21 @@ try {
     const lastWb = await page.eval(`[...document.querySelectorAll('.event[data-kind="worldBoss"] dd')].map(d => d.textContent).join('|')`);
     check('world boss last spawn 14:30 UTC, about 30 min ago', /2:30\s?PM \((29|30) min ago\)/.test(lastWb), lastWb);
     const unknowns = await page.eval(`[...document.querySelectorAll('.facts dd.unknown')].map(d => d.firstChild.textContent)`);
-    check('the Helltide region and the Legion site show as Unknown', unknowns.length === 2 && unknowns.every((t) => t === 'Unknown'), JSON.stringify(unknowns));
+    const shownUnknowns = await page.eval(`[...document.querySelectorAll('.facts dd.unknown')].filter(d => d.checkVisibility()).length`);
+    check('no Unknown row is shown: the World Boss arena row waits out of sight', unknowns.length === 1 && shownUnknowns === 0
+      && await page.eval(`[...document.querySelectorAll('.event[data-kind="worldBoss"] .facts dt')].find(d => d.textContent === 'Location').hidden`), `${JSON.stringify(unknowns)} shown ${shownUnknowns}`);
+    const legionBox = await page.eval(`(() => { const d = document.querySelector('.event[data-kind="legion"] details.candidates'); if (!d) return null;
+      const li = [...d.querySelectorAll('li')]; return { open: d.open, summary: d.querySelector('summary').textContent, items: li.map(x => x.textContent).join(' | '),
+      shown: li[0].checkVisibility(), row: d.closest('dd').textContent.startsWith(d.querySelector('summary').textContent) }; })()`);
+    check('the Legion card shows "4 candidates · predicted", folded', !!legionBox && !legionBox.open && !legionBox.shown && legionBox.summary === '4 candidates · predicted' && legionBox.row, JSON.stringify(legionBox));
+    check('and folds the next Legion\'s group: group A for 15:20', legionBox?.items === "Kor Dragan, Fractured Peaks | Carrowcrest Ruins, Scosglen | Dilapidated Aqueducts, Kehjistan | Alcarnus, Kehjistan", legionBox?.items);
+    const legionOpened = await page.eval(`(() => { const d = document.querySelector('.event[data-kind="legion"] details.candidates'); d.open = true; const s = d.querySelector('li').checkVisibility(); d.open = false; return s; })()`);
+    check('opening it shows the sites', legionOpened === true, String(legionOpened));
+    check('the Legion countdown stays the big number', /^\d+:\d\d$/.test(await page.eval(card('legion', '.big'))), await page.eval(card('legion', '.big')));
+    const helltideRegion = await page.eval(`[...document.querySelectorAll('.event[data-kind="helltide"] .facts dt')].find(d => d.textContent === 'Region')?.nextElementSibling?.textContent ?? ''`);
+    check('the Helltide in progress shows its predicted region', helltideRegion === 'Scosglen · predicted', helltideRegion);
     const predicted = await page.eval(`[...document.querySelectorAll('.event[data-kind="worldBoss"] .facts dd.basis-predicted')].map(d => d.textContent)`);
-    check('the next World Boss shows the predicted boss and arena, labeled predicted', predicted.length === 2 && predicted[0] === 'Azmodan · predicted' && predicted[1] === 'Caen Adar, Scosglen · predicted', JSON.stringify(predicted));
+    check('the next World Boss shows the predicted boss, labeled predicted, and no predicted arena', predicted.length === 1 && predicted[0] === 'Azmodan · predicted', JSON.stringify(predicted));
     const laterList = await page.eval(`[...document.querySelectorAll('.event[data-kind="worldBoss"] .next-list li')].map(li => li.textContent).join(' | ')`);
     check('the later spawns stay short: times, and "two bosses" on a double spawn', laterList === '9:30 PM | 1:00 AM Tomorrow · two bosses | 4:30 AM Tomorrow', laterList);
     const folded = await page.eval(`(() => { const d = document.querySelector('.event[data-kind="worldBoss"] details.later-predictions');
@@ -136,18 +148,19 @@ try {
     const opened = await page.eval(`(() => { const d = document.querySelector('.event[data-kind="worldBoss"] details.later-predictions'); d.open = true;
       const shown = d.querySelector('li').checkVisibility(); d.open = false; return shown; })()`);
     check('opening it shows them', opened === true, String(opened));
-    check('and list each later spawn\'s predicted boss and arena, the second boss\'s region too', JSON.stringify(folded?.items) === JSON.stringify([
-      '9:30 PM · Azmodan, The Crucible, Fractured Peaks',
-      '1:00 AM Tomorrow · Wandering Death, Saraan Caldera, Dry Steppes; second boss in The Cauldron, Nahantu',
-      '4:30 AM Tomorrow · Wandering Death, The Crucible, Fractured Peaks']), JSON.stringify(folded?.items));
-    check('cards with nothing predicted have no disclosure', await page.eval(`[...document.querySelectorAll('.event:not([data-kind="worldBoss"]) details.later-predictions')].every(d => d.hidden)`));
+    check('and list each later spawn\'s predicted boss', JSON.stringify(folded?.items) === JSON.stringify([
+      '9:30 PM · Azmodan', '1:00 AM Tomorrow · Wandering Death', '4:30 AM Tomorrow · Wandering Death']), JSON.stringify(folded?.items));
+    const helltideLater = await page.eval(`[...document.querySelectorAll('.event[data-kind="helltide"] details.later-predictions li')].map(li => li.textContent).join(' | ')`);
+    check('the Helltide card folds its later predictions away too, expansion regions included', helltideLater === '5:00 PM · Kehjistan | 6:00 PM · Hawezar and Nahantu | 7:00 PM · Fractured Peaks', helltideLater);
+    const legionLater = await page.eval(`[...document.querySelectorAll('.event[data-kind="legion"] details.later-predictions li')].map(li => li.textContent).join(' | ')`);
+    check('the Legion card folds later Legions\' groups away, alternating', legionLater === '3:45 PM · 4 candidates: Hawezar, Dry Steppes | 4:10 PM · 4 candidates: Fractured Peaks, Scosglen, Kehjistan | 4:35 PM · 4 candidates: Hawezar, Dry Steppes', legionLater);
     const rows = await page.eval(`[...document.querySelectorAll('.facts dd.unknown')].map(d => ({
       hint: d.querySelector('.hint').textContent, reason: d.title, height: d.getBoundingClientRect().height,
       line: parseFloat(getComputedStyle(d).lineHeight) }))`);
     check('each Unknown has a short hint and its full reason on hover', rows.every((r) => r.hint.startsWith(' · ') && r.reason.length > 30), JSON.stringify(rows));
     check('each Unknown takes one line', rows.every((r) => r.height <= r.line * 1.2), JSON.stringify(rows.map((r) => [r.height, r.line])));
     const about = await page.eval(`document.querySelector('.event[data-kind="worldBoss"] details.about').textContent`);
-    check('About says where the World Boss prediction comes from and until when', about.includes('Boss and arena: Predicted') && about.includes('Pinned to a spawn on Oct 24, 2026, predicted through Oct 31, 2026'), about.slice(-700));
+    check('About says where the World Boss prediction comes from and until when', about.includes('Boss: Predicted') && about.includes('Pinned to a spawn on Oct 24, 2026, predicted through Oct 31, 2026'), about.slice(-700));
     check('an inferred start time shows what confirms it', about.includes(progressText(sharedStarts('worldBoss'))), about.slice(0, 400));
     const link = await page.eval(`[...document.querySelectorAll('footer a')].map(a => a.href)`);
     check('footer links to radmagelabs.com', link.includes('https://radmagelabs.com/'), JSON.stringify(link));
@@ -508,8 +521,9 @@ try {
     check('the region you marked shows on the Helltide card as seen', (await page.eval(row('helltide', 'Region'))).startsWith('Hawezar · seen in game'), await page.eval(row('helltide', 'Region')));
     check('the radar lights that region', await page.eval("document.querySelector('.atlas-region.hawezar').classList.contains('radar-helltide')"));
     await advance(page, 50 * 60000);
-    await page.waitFor(`${row('helltide', 'Region')}.startsWith('Unknown')`, 4000).catch(() => {});
-    check('the mark expires when the Helltide ends', (await page.eval(row('helltide', 'Region'))).startsWith('Unknown'));
+    await page.waitFor(`${row('helltide', 'Region')}.includes('predicted')`, 4000).catch(() => {});
+    // The next Helltide (16:00) is predicted again: the mark does not move the cycle.
+    check('the mark expires when the Helltide ends, and the next one is predicted', (await page.eval(row('helltide', 'Region'))) === 'Dry Steppes and Skovos · predicted', await page.eval(row('helltide', 'Region')));
     check('and the radar light goes out with it', !(await page.eval("document.querySelector('.atlas-region.hawezar').classList.contains('radar-helltide')")));
     await page.close();
   }
@@ -634,20 +648,99 @@ try {
     if (shots) await page.screenshot(join(shots, 'radar.png'), { height: 1240 });
     await page.close();
 
-    // Predictions light the radar too, labeled Predicted: the rotation's next boss and arena, and at a
-    // double spawn the second boss's expansion region. (Fresh prefs: World Bosses were just switched off.)
+    // The World Boss arena is not predicted: a predicted boss alone puts nothing on the radar, and the
+    // card points to the in-game map instead. (Fresh prefs: World Bosses were just switched off.)
     const ahead = await open('2026-10-24T17:40:00Z', { timezone: 'UTC', prefs: {}, before: "localStorage.removeItem('d4-tracker:v1:observations')" });
-    check('a predicted World Boss lights its arena\'s region, marked as predicted', (await dots(ahead)) === 'boss:scosglen:true'
-      && await ahead.eval("document.querySelector('.radar-dot.boss').classList.contains('inferred')"), await dots(ahead));
-    check('its label names the boss and says Predicted', (await ahead.eval(text('.radar-dot.boss .radar-text'))) === 'Azmodan 6:00 PM (Predicted)', await ahead.eval(text('.radar-dot.boss .radar-text')));
-    check('the card predicts the same boss and arena', (await ahead.eval(row('worldBoss', 'Location'))) === 'Caen Adar, Scosglen · predicted', await ahead.eval(row('worldBoss', 'Location')));
+    check('a predicted boss alone puts no World Boss dot on the radar', !(await dots(ahead)).includes('boss'), await dots(ahead));
+    const legend = (p) => p.eval("[...document.querySelectorAll('.radar-legend li')].map(li => li.className + ': ' + li.textContent).join(' | ')");
+    check('the legend lists only what the radar shows: the Helltide, and no dots', (await legend(ahead)) === 'helltide: Red outline: a Helltide is on there now.', await legend(ahead));
+    const outline = await ahead.eval("(() => { const p = document.querySelector('.atlas-region.radar-helltide path'); if (!p) return 'no lit region'; const s = getComputedStyle(p); return `${s.stroke}|${s.strokeDasharray}`; })()");
+    check('the Helltide region has a red dashed outline', outline.startsWith('rgb(224, 50, 43)|') && !outline.endsWith('|none'), outline);
+    check('the card keeps the predicted boss and hides the unknown arena', (await ahead.eval(row('worldBoss', 'Boss'))) === 'Azmodan · predicted'
+      && await ahead.eval(`[...document.querySelectorAll('.event[data-kind="worldBoss"] .facts dt')].find(d => d.textContent === 'Location').hidden`), await ahead.eval(row('worldBoss', 'Boss')));
     if (shots) await ahead.screenshot(join(shots, 'radar-predicted.png'), { height: 1240 });
     await ahead.close();
     const double = await open('2026-10-25T00:40:00Z', { timezone: 'UTC', width: 390, height: 844, mobile: true, prefs: {}, before: "localStorage.removeItem('d4-tracker:v1:observations')" });
-    check('a double spawn lights both predicted regions', (await dots(double)) === 'boss:dry_steppes:true,boss:nahantu:true', await dots(double));
+    check('a double spawn lights no predicted region either', !(await dots(double)).includes('boss'), await dots(double));
     const line = await double.eval("[...document.querySelectorAll('.radar-summary li')].filter(li => li.offsetParent !== null).map(li => li.textContent).join(' | ')");
-    check('the phone summary lists both, as predicted', line.includes('Wandering Death, Dry Steppes (Predicted)') && line.includes('Nahantu (Predicted)'), line);
+    check('the phone summary lists the predicted Helltides and no World Boss', line === 'Helltide: Fractured Peaks (Predicted), Skovos (Predicted) · until 12:55 AM', line);
     await double.close();
+
+    // The map hint: under the World Boss countdown from 60 minutes before, under the Legion's from 10,
+    // gone at the start. Checked across each threshold and each start on a running clock.
+    const hint = (p, kind) => p.eval(`(() => { const e = document.querySelector('.event[data-kind="${kind}"] .map-hint'); return e && e.checkVisibility() ? e.textContent : ''; })()`);
+    const HINT = 'Check in-game map for exact location';
+    const WB_HINT = 'Check in-game map for boss and location';
+    const big = (p, kind) => p.eval(text(`.event[data-kind="${kind}"] .big`));
+    const secs = (s) => s.split(':').map(Number).reduce((a, b) => a * 60 + b, 0);
+    const wbEdge = await open('2026-10-24T16:59:57Z', { timezone: 'UTC', prefs: {}, before: "localStorage.removeItem('d4-tracker:v1:observations')" });
+    check('no map hint with more than 60 minutes to the World Boss', (await hint(wbEdge, 'worldBoss')) === '', await hint(wbEdge, 'worldBoss'));
+    await wbEdge.waitFor(`!!document.querySelector('.event[data-kind="worldBoss"] .map-hint')?.checkVisibility()`, 6000).catch(() => {});
+    check('the World Boss map hint appears at 60 minutes: boss and location', (await hint(wbEdge, 'worldBoss')) === WB_HINT && secs(await big(wbEdge, 'worldBoss')) <= 3600, `${await hint(wbEdge, 'worldBoss')} ${await big(wbEdge, 'worldBoss')}`);
+    check('the Helltide card never shows it', (await hint(wbEdge, 'helltide')) === '');
+    await wbEdge.close();
+    const wbStart = await open('2026-10-24T17:59:57Z', { timezone: 'UTC', prefs: {}, before: "localStorage.removeItem('d4-tracker:v1:observations')" });
+    check('the World Boss hint stays up to the spawn', (await hint(wbStart, 'worldBoss')) === WB_HINT);
+    await wbStart.waitFor(`!document.querySelector('.event[data-kind="worldBoss"] .map-hint')?.checkVisibility()`, 6000).catch(() => {});
+    check('and goes at the spawn, as the countdown rolls over to the next one', (await hint(wbStart, 'worldBoss')) === '' && secs(await big(wbStart, 'worldBoss')) > 12500, await big(wbStart, 'worldBoss'));
+    await wbStart.close();
+    const lgEdge = await open('2026-10-24T19:44:57Z', { timezone: 'UTC', prefs: {}, before: "localStorage.removeItem('d4-tracker:v1:observations')" });
+    check('no map hint with more than 10 minutes to the Legion', (await hint(lgEdge, 'legion')) === '', await hint(lgEdge, 'legion'));
+    await lgEdge.waitFor(`!!document.querySelector('.event[data-kind="legion"] .map-hint')?.checkVisibility()`, 6000).catch(() => {});
+    check('the Legion map hint appears at 10 minutes: exact location', (await hint(lgEdge, 'legion')) === HINT && secs(await big(lgEdge, 'legion')) <= 600, await big(lgEdge, 'legion'));
+    await lgEdge.close();
+    const lgStart = await open('2026-10-24T19:54:57Z', { timezone: 'UTC', width: 390, height: 844, mobile: true, prefs: {}, before: "localStorage.removeItem('d4-tracker:v1:observations')" });
+    const hintBox = await lgStart.eval(`(() => { const e = document.querySelector('.event[data-kind="legion"] .map-hint'); const r = e.getBoundingClientRect(); return { h: r.height, line: parseFloat(getComputedStyle(e).lineHeight) || 18, right: r.right }; })()`);
+    check('on a phone the hint is one line and the page does not scroll sideways', (await hint(lgStart, 'legion')) === HINT && hintBox.h <= hintBox.line * 1.4
+      && (await lgStart.eval('document.documentElement.scrollWidth - innerWidth')) <= 0, JSON.stringify(hintBox));
+    await lgStart.waitFor(`!document.querySelector('.event[data-kind="legion"] .map-hint')?.checkVisibility()`, 6000).catch(() => {});
+    check('the Legion hint goes at the start; the next Legion is 25 minutes off', (await hint(lgStart, 'legion')) === '' && secs(await big(lgStart, 'legion')) > 1400, await big(lgStart, 'legion'));
+    await lgStart.close();
+    const compactHint = await open('2026-10-24T19:50:00Z', { timezone: 'UTC', prefs: { compact: true } });
+    check('compact view keeps to the countdowns: no map hint there', (await hint(compactHint, 'legion')) === '');
+    await compactHint.close();
+
+    // One click marks the Helltide in progress: the region lights and breathes until it ends, and the card agrees.
+    const mark = await open('2026-10-24T15:10:00Z', { timezone: 'UTC', prefs: {}, before: "localStorage.removeItem('d4-tracker:v1:observations')" });
+    check('before any mark, the predicted region is lit, dashed and labeled Predicted', (await lit(mark)) === 'scosglen'
+      && await mark.eval("document.querySelector('.atlas-region.scosglen').classList.contains('inferred')")
+      && (await mark.eval(text('.radar-text.helltide'))).endsWith('(Predicted)'), `${await lit(mark)} ${await mark.eval(text('.radar-text.helltide'))}`);
+    await mark.eval("document.querySelector('.atlas-region.hawezar').dispatchEvent(new MouseEvent('click', { bubbles: true }))");
+    const offered = await mark.eval("[...document.querySelectorAll('.map-info button')].map(b => b.textContent).join('|')");
+    check('a selected region offers "Helltide is here" while a Helltide is on', offered.startsWith('Helltide is here|'), offered);
+    await mark.eval("[...document.querySelectorAll('.map-info button')].find(b => b.textContent === 'Helltide is here')?.click()");
+    await mark.waitFor("!!document.querySelector('.atlas-region.hawezar.radar-helltide')", 3000).catch(() => {});
+    check('one click lights that region, in place of the prediction', (await lit(mark)) === 'hawezar'
+      && !(await mark.eval("document.querySelector('.atlas-region.hawezar').classList.contains('inferred')")), await lit(mark));
+    const breath = await mark.eval("(() => { const a = document.querySelector('.atlas-region.hawezar.radar-helltide path')?.getAnimations()[0]; return a ? `${a.animationName}:${a.playState}` : 'none'; })()");
+    check('and its outline breathes', breath === 'radar-breathe:running', breath);
+    check('the Helltide card shows the region as seen', (await mark.eval(row('helltide', 'Region'))) === 'Hawezar · seen in game', await mark.eval(row('helltide', 'Region')));
+    check('once marked, the button goes', !(await mark.eval(text('.map-info'))).includes('Helltide is here'), await mark.eval(text('.map-info')));
+    await advance(mark, 46 * 60000);
+    await mark.waitFor("!document.querySelector('.atlas-region.radar-helltide')", 4000).catch(() => {});
+    check('the light goes out when the Helltide ends', (await lit(mark)) === '', await lit(mark));
+    check('and between Helltides there is nothing to mark', !(await mark.eval(text('.map-info'))).includes('Helltide is here'), await mark.eval(text('.map-info')));
+    await mark.close();
+
+    // Legion candidates: the next Legion's group on the card, switching at its start; never a radar light.
+    const cands = (p) => p.eval(`[...document.querySelectorAll('.event[data-kind="legion"] details.candidates li')].map(li => li.textContent).join(' | ')`);
+    const lgNext = await open('2026-10-24T19:54:57Z', { timezone: 'UTC', prefs: {}, before: "localStorage.removeItem('d4-tracker:v1:observations')" });
+    check('the Legion card lists the four possible sites of the next Legion (group B at 19:55)', (await cands(lgNext)) === "Haunted Wreckage, Hawezar | Crusader's Monument, Hawezar | Norgoi Vigil, Dry Steppes | Temple of Rot, Dry Steppes", await cands(lgNext));
+    check('a group of candidates puts no Legion dot on the radar', !(await dots(lgNext)).includes('legion'), await dots(lgNext));
+    await lgNext.waitFor(`[...document.querySelectorAll('.event[data-kind="legion"] details.candidates li')][0]?.textContent === 'Kor Dragan, Fractured Peaks'`, 6000).catch(() => {});
+    check('at its start the card moves on to the next Legion and its group (A, 20:20)', (await cands(lgNext)) === "Kor Dragan, Fractured Peaks | Carrowcrest Ruins, Scosglen | Dilapidated Aqueducts, Kehjistan | Alcarnus, Kehjistan", await cands(lgNext));
+    await lgNext.close();
+    const lgSeen = await open('2026-10-24T19:50:00Z', { timezone: 'UTC', prefs: {}, before: seed([S('lg1', { event: 'legion', at: '2026-10-24T19:55:00Z', timing: 'start', place: 'Haunted Wreckage', region: 'hawezar' })]) });
+    const lgLegend = await lgSeen.eval("[...document.querySelectorAll('.radar-legend li')].map(li => li.className).join(',')");
+    check('with a Legion seen in game, the legend adds the violet dot', lgLegend === 'helltide,legion', lgLegend);
+    check('a Legion site seen in game shows on the card in place of the candidates', (await lgSeen.eval(row('legion', 'Location'))) === 'Haunted Wreckage, Hawezar · seen in game', await lgSeen.eval(row('legion', 'Location')));
+    check('and lights a Legion dot in its region', (await dots(lgSeen)).includes('legion:hawezar'), await dots(lgSeen));
+    await lgSeen.close();
+    const lgBoth = await open('2026-10-24T20:15:00Z', { timezone: 'UTC', prefs: {}, before: seed([S('lg2', { event: 'legion', at: '2026-10-24T20:20:00Z', timing: 'start', place: 'Chakhir', region: 'nahantu' })]) });
+    const bothSummary = await lgBoth.eval(text('.event[data-kind="legion"] details.candidates summary'));
+    check('an expansion Legion seen at the same time keeps the base-game candidates and shows beside them', bothSummary === '4 candidates · predicted · also Chakhir, Nahantu (seen)', bothSummary);
+    check('and lights its own Legion dot, in Nahantu', (await dots(lgBoth)).includes('legion:nahantu'), await dots(lgBoth));
+    await lgBoth.close();
 
     // Lead-up windows and expiry: 40 minutes before the World Boss nothing shows; the Legion 25 minutes out does not either.
     const early = await open('2026-10-24T10:20:00Z', { timezone: 'UTC', before: seed(scene) });
@@ -658,8 +751,10 @@ try {
     check('a longer lead-up shows the World Boss earlier, without a pulse until 30 minutes before', (await dots(longLead)) === 'boss:kehjistan:false,boss:nahantu:false', await dots(longLead));
     await longLead.close();
     const after = await open('2026-10-24T11:11:00Z', { timezone: 'UTC', width: 390, height: 844, mobile: true, before: seed(scene) });
-    check('everything goes out once its event is over', (await dots(after)) === '' && (await lit(after)) === '', `${await dots(after)} / ${await lit(after)}`);
-    check('with nothing lit there is no summary', (await after.eval("document.querySelector('.radar-summary')")) === null);
+    // At 11:11 the 10:00 Helltide and the 11:00 spawn are over; only the 11:00 Helltide's prediction is lit.
+    check('everything seen goes out once its event is over', (await dots(after)) === '' && (await lit(after)) === 'dry_steppes', `${await dots(after)} / ${await lit(after)}`);
+    const afterSummary = await after.eval("[...document.querySelectorAll('.radar-summary li')].map(li => li.className + ': ' + li.textContent).join(' | ')");
+    check('and the summary has just that line, labeled Predicted', afterSummary.startsWith('helltide: ') && afterSummary.includes('Dry Steppes (Predicted)') && !afterSummary.includes('|'), afterSummary);
     await after.close();
 
     // Phone and compact.

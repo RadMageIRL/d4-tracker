@@ -11,6 +11,7 @@
   --text-dim: #a49d93;
   --text-faint: #7b756d;
   --helltide: #e0523a;
+  --helltide-map: #e0322b;
   --helltide-soft: rgba(224, 82, 58, 0.14);
   --helltide-glow: rgba(224, 82, 58, 0.55);
   --boss: #d6a64f;
@@ -39,6 +40,7 @@
   --text-dim: #5d5750;
   --text-faint: #7d766d;
   --helltide: #b9341f;
+  --helltide-map: #c01f1a;
   --helltide-soft: rgba(185, 52, 31, 0.10);
   --helltide-glow: rgba(185, 52, 31, 0.35);
   --boss: #94680f;
@@ -239,6 +241,11 @@ details.about .muted { margin: 8px 0 0; font-size: 12px; color: var(--text-faint
   letter-spacing: -0.01em;
 }
 .big-label { color: var(--text-dim); font-size: 13px; margin-top: -4px; }
+/* A quiet pointer to the game's own map once it marks the coming spawn: one line, the card's accent. */
+.map-hint { display: flex; align-items: center; gap: 5px; margin: 5px 0 0; font-size: 12.5px; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.map-hint[hidden] { display: none; }
+.map-hint svg { width: 13px; height: 13px; flex: none; fill: currentColor; opacity: 0.9; }
+:root.compact .map-hint { display: none; }
 
 .progress {
   height: 4px;
@@ -263,6 +270,8 @@ details.about .muted { margin: 8px 0 0; font-size: 12px; color: var(--text-faint
   font-variant-numeric: tabular-nums;
 }
 
+.facts details.candidates summary { cursor: pointer; }
+.facts details.candidates ul { margin: 4px 0 0; padding: 0; list-style: none; display: grid; gap: 2px; font-size: 13px; color: var(--text-dim); }
 details.later-predictions { font-size: 13px; color: var(--text-dim); }
 details.later-predictions summary { cursor: pointer; color: var(--text-faint); font-size: 12px; }
 details.later-predictions ul { margin: 4px 0 0; padding: 0; list-style: none; display: grid; gap: 2px; font-variant-numeric: tabular-nums; }
@@ -542,20 +551,20 @@ footer a { color: var(--text-dim); }
 .conf-filter { margin-top: -4px; }
 .conf-filter > .note { align-self: center; font-size: 12px; color: var(--text-faint); margin-right: 2px; }
 
-/* The event radar. A lit region: a tinted fill and an outline that breathes; an Inferred light is
-   dashed. A spawn: a dot whose ring pulses only when the event needs attention. Only opacity and
-   transform are animated, so nothing reflows the countdowns. */
+/* The event radar. A Helltide: a red dashed outline over a light red tint, as the game's own map
+   draws it, breathing gently. A spawn seen in game: a dot whose ring pulses only when the event
+   needs attention. Only opacity and transform are animated, so nothing reflows the countdowns. */
 .radar-note { color: var(--text-dim); font-size: 13px; margin: 0 0 10px; }
 .radar-chips { margin-bottom: 10px; }
 .atlas-region.radar-helltide path {
-  fill: color-mix(in srgb, var(--helltide) 20%, var(--surface-2));
-  stroke: var(--helltide); stroke-width: 3.5; stroke-dasharray: none;
-  animation: radar-breathe 2.6s ease-in-out infinite;
+  fill: color-mix(in srgb, var(--helltide-map) 16%, var(--surface-2));
+  stroke: var(--helltide-map); stroke-width: 3; stroke-dasharray: 9 5;
+  animation: radar-breathe 3.2s ease-in-out infinite;
 }
-.atlas-region.radar-helltide.inferred path { stroke-dasharray: 8 5; }
-@keyframes radar-breathe { 0%, 100% { stroke-opacity: 0.45; } 50% { stroke-opacity: 1; } }
+@keyframes radar-breathe { 0%, 100% { stroke-opacity: 0.7; } 50% { stroke-opacity: 1; } }
 .radar-text { font: 600 12.5px var(--sans); fill: var(--text); pointer-events: none; paint-order: stroke; stroke: var(--bg); stroke-width: 3px; }
-.radar-text.helltide { fill: var(--helltide); }
+.radar-text.helltide { fill: var(--helltide-map); }
+.btn.helltide-mark { border-color: var(--helltide-map); color: var(--helltide-map); }
 /* No browser focus rectangle around a region or a marker (on an SVG group it boxes the bounding
    box). Keyboard focus still shows: the region's own outline turns the focus color (above). */
 .atlas-region:focus, .atlas-region:focus-visible, .radar-dot:focus, .radar-dot:focus-visible { outline: none; }
@@ -574,11 +583,11 @@ footer a { color: var(--text-dim); }
 }
 .radar-legend { list-style: none; padding: 0; margin: 0 0 6px; display: grid; gap: 4px; font-size: 13px; }
 .radar-legend .key { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; vertical-align: -1px; }
-.radar-legend .helltide .key { border-radius: 3px; border: 2px solid var(--helltide); background: color-mix(in srgb, var(--helltide) 30%, transparent); }
+.radar-legend .helltide .key { border-radius: 3px; border: 2px dashed var(--helltide-map); background: color-mix(in srgb, var(--helltide-map) 18%, transparent); }
 .radar-legend .boss .key { background: var(--boss); }
 .radar-legend .legion .key { background: var(--legion); }
 .radar-events { padding-left: 18px; margin: 4px 0 8px; font-size: 13px; }
-.radar-events .helltide { color: var(--helltide); } .radar-events .worldBoss { color: var(--boss); } .radar-events .legion { color: var(--legion); }
+.radar-events .helltide { color: var(--helltide-map); } .radar-events .worldBoss { color: var(--boss); } .radar-events .legion { color: var(--legion); }
 .radar-more { margin-top: 10px; }
 /* The phone summary under the radar: the same lights written out, one line per event type. Only
    on narrow screens, where the labels inside the drawing are too small to read. */
@@ -587,7 +596,7 @@ footer a { color: var(--text-dim); }
   .radar-summary { display: grid; gap: 4px; list-style: none; padding: 0; margin: 8px 0 0; font-size: 14px; }
   .radar-summary li { padding-left: 16px; position: relative; }
   .radar-summary li::before { content: ""; position: absolute; left: 0; top: 0.45em; width: 9px; height: 9px; border-radius: 50%; }
-  .radar-summary .helltide { color: var(--helltide); } .radar-summary .helltide::before { border-radius: 2px; background: var(--helltide); }
+  .radar-summary .helltide { color: var(--helltide-map); } .radar-summary .helltide::before { border-radius: 2px; background: var(--helltide-map); }
   .radar-summary .worldBoss { color: var(--boss); } .radar-summary .worldBoss::before { background: var(--boss); }
   .radar-summary .legion { color: var(--legion); } .radar-summary .legion::before { background: var(--legion); }
 }

@@ -102,7 +102,6 @@ describe('re-pinning from the player\'s own sightings', () => {
 });
 
 describe('the World Boss rotation in the data', () => {
-  const wb = eventDefinitions().find((d) => d.kind === 'worldBoss')!;
   const rot = WORLD_BOSS_ROTATION!;
 
   it('passes the data checks, and they refuse a bad one', () => {
@@ -111,7 +110,7 @@ describe('the World Boss rotation in the data', () => {
     bad.worldBoss!.cycle[0]!.region = 'nahantu';
     bad.worldBoss!.pin.position = 8;
     bad.worldBoss!.holdDays = 0;
-    bad.worldBoss!.second!.regions = ['scosglen'];
+    bad.worldBoss!.second = { regions: ['scosglen'], pin: { start: '2026-10-24T11:00:00Z', position: 0 } };
     const problems = checkRotations(bad, EVENTS, LOCATIONS).join('\n');
     expect(problems).toMatch(/not a base-game region/);
     expect(problems).toMatch(/position must be 0 to 7/);
@@ -126,18 +125,17 @@ describe('the World Boss rotation in the data', () => {
     expect([...count.values()].every((c) => c === 2)).toBe(true);
   });
 
-  it('is pinned to a World Boss start, and its second-boss pin to a double spawn', () => {
-    const k = (rot.pin.startMs - at('2026-10-24T04:00:00Z')) / PERIOD;
-    expect(Number.isInteger(k)).toBe(true);
-    expect(hasExtraSpawn(wb, rot.second!.pin.startMs)).toBe(true);
+  it('predicts no arena and no second-boss region: no arena order holds', () => {
+    expect(rot.cycle.every((s) => s.region === undefined)).toBe(true);
+    expect(rot.second).toBeUndefined();
   });
 
-  it('predicts its own pinned spawn from the pin\'s place in the cycle', () => {
+  it('is pinned to a World Boss start', () => {
+    expect(Number.isInteger((rot.pin.startMs - at('2026-10-24T04:00:00Z')) / PERIOD)).toBe(true);
+  });
+
+  it("predicts its own pinned spawn from the pin's place in the cycle", () => {
     expect(predictMain(rot, rot.pin.startMs, PERIOD)).toEqual(rot.cycle[rot.pin.position]);
-  });
-
-  it('agrees with the second boss first-hand reports place: Wandering Death in Nahantu, 2026-09-18', () => {
-    expect(predictSecond(rot, at('2026-09-18T21:00:00Z'), 4 * PERIOD)).toBe('nahantu');
   });
 });
 
@@ -148,80 +146,88 @@ describe('World Boss details and radar from the rotation', () => {
   let n = 0;
   const sighting = (rest: Partial<Observation> & Pick<Observation, 'at'>): Observation =>
     ({ id: `rot${n++}`, event: 'worldBoss', timing: 'start', recordedAt: rest.at, ...rest });
-  const source = (list: Observation[], rotation: Rotation | null = WORLD_BOSS_ROTATION ?? null) => new IntelligenceDetailsSource({
+  const source = (list: Observation[], rotation: Rotation | null = WORLD_BOSS_ROTATION ?? null, isShared?: () => boolean) => new IntelligenceDetailsSource({
     reasons: DETAIL_REASONS, sightings: () => list, segments: (k) => def(k).segments, registered: [], boundaries: [],
     regions: LOCATIONS.regions, arenas: LOCATIONS.worldBossArenas, bosses: bossNames(),
-    ...(rotation ? { rotation } : {}),
+    ...(rotation ? { rotation } : {}), ...(isShared ? { isShared } : {}),
     extra: { every: wb.extra!.every, has: (ms) => hasExtraSpawn(wb, ms) },
   });
   const occ = (iso: string) => ({ index: 0, startMs: at(iso), endMs: at(iso) });
   const NOW = at('2026-10-24T17:00:00Z');
 
-  it('predicts the boss and arena of the next spawn, labeled predicted', () => {
+  it('predicts the boss of the next spawn, labeled predicted, and leaves the arena Unknown', () => {
     const d = source([]).details('worldBoss', occ('2026-10-24T18:00:00Z'), NOW);
     expect(d.identity).toMatchObject({ known: true, value: 'Azmodan', basis: 'predicted' });
-    expect(d.location).toMatchObject({ known: true, value: 'Caen Adar, Scosglen', basis: 'predicted' });
-    expect(d.location.known && d.location.source).toMatch(/pinned to the spawn of 2026-10-24 14:30 UTC/);
+    expect(d.identity?.known && d.identity.source).toMatch(/pinned to the spawn of 2026-10-24 14:30 UTC/);
+    expect(d.location).toMatchObject({ known: false });
+    expect(source([]).predicted('worldBoss', at('2026-10-24T18:00:00Z'), NOW)).toEqual({ identity: 'Azmodan' });
   });
 
-  it('adds the second boss\'s region at a double spawn, and lights both on the radar', () => {
-    const s = source([]);
-    const d = s.details('worldBoss', occ('2026-10-25T01:00:00Z'), NOW);
-    expect(d.location).toMatchObject({ value: 'Saraan Caldera, Dry Steppes; also The Cauldron, Nahantu', basis: 'predicted' });
-    expect(s.radarPredictions('worldBoss', at('2026-10-25T01:00:00Z'), NOW)).toEqual([
-      { region: 'dry_steppes', boss: 'Wandering Death', confidence: 'inferred' },
-      { region: 'nahantu', extra: true, confidence: 'inferred' },
-    ]);
-    expect(s.predicted('worldBoss', at('2026-10-25T15:00:00Z'), NOW)).toMatchObject({ identity: 'Ashava', second: "Hatred's Mortar, Skovos" });
+  it('lights nothing on the radar from a predicted boss alone, double spawns included', () => {
+    expect(source([]).radarPredictions('worldBoss', at('2026-10-24T18:00:00Z'), NOW)).toEqual([]);
+    expect(source([]).radarPredictions('worldBoss', at('2026-10-25T01:00:00Z'), NOW)).toEqual([]);
   });
 
-  it('predicts a second region only at a double spawn', () => {
-    expect(source([]).predicted('worldBoss', at('2026-10-24T18:00:00Z'), NOW)).toEqual({ identity: 'Azmodan', location: 'Caen Adar, Scosglen' });
+  it('shows the arena seen in game, and the boss seen instead of the prediction', () => {
+    const arenaOnly = source([sighting({ at: '2026-10-24T21:30:00Z', place: 'Saraan Caldera', region: 'dry_steppes' })]).details('worldBoss', occ('2026-10-24T21:30:00Z'), NOW);
+    expect(arenaOnly.location).toMatchObject({ value: 'Saraan Caldera, Dry Steppes', basis: 'seen' });
+    expect(arenaOnly.identity).toMatchObject({ value: 'Azmodan', basis: 'predicted' });
+    const both = source([sighting({ at: '2026-10-24T18:00:00Z', boss: 'Ashava', place: 'Seared Basin', region: 'kehjistan' })]).details('worldBoss', occ('2026-10-24T18:00:00Z'), NOW);
+    expect(both.identity).toMatchObject({ value: 'Ashava', basis: 'seen' });
   });
 
-  it('re-pins the second boss\'s turn from a second boss seen, and never the main cycle', () => {
-    const list = [sighting({ at: '2026-10-25T01:00:00Z', boss: 'Ashava', place: "Hatred's Mortar", region: 'skovos' })];
-    const s = source(list);
-    expect(s.predicted('worldBoss', at('2026-10-25T15:00:00Z'), NOW)).toMatchObject({ identity: 'Ashava', second: 'The Cauldron, Nahantu' });
-    expect(s.predicted('worldBoss', at('2026-10-25T04:30:00Z'), NOW)).toMatchObject({ identity: 'Wandering Death', location: 'The Crucible, Fractured Peaks' });
-  });
-
-  it('keeps a report about a spawn in the prediction\'s note, without showing it', () => {
+  it("keeps a report about a spawn in the prediction's note, without showing it", () => {
     const told = [sighting({ at: '2026-10-24T18:00:00Z', boss: 'Ashava', provenance: 'reported' })];
     const d = source(told).details('worldBoss', occ('2026-10-24T18:00:00Z'), NOW);
     expect(d.identity).toMatchObject({ value: 'Azmodan', basis: 'predicted' });
     expect(d.identity?.known && d.identity.source).toMatch(/Reported to you, not checked in game: Ashava\.$/);
   });
 
-  it('shows what was seen instead of the prediction', () => {
-    const list = [sighting({ at: '2026-10-24T18:00:00Z', boss: 'Ashava', place: 'Seared Basin', region: 'kehjistan' })];
-    const d = source(list).details('worldBoss', occ('2026-10-24T18:00:00Z'), NOW);
-    expect(d.identity).toMatchObject({ value: 'Ashava', basis: 'seen' });
+  it("re-pins the boss order to the player's own boss sighting, not to a report, a shared record or an arena alone", () => {
+    // The pin says 18:00 is place 6 (Azmodan). Ashava seen there moves the cycle to the nearer
+    // Ashava place, 5, so 01:00 (two spawns on) is place 7, Azmodan, instead of place 0.
+    const mine = [sighting({ at: '2026-10-24T18:00:00Z', boss: 'Ashava' })];
+    expect(source(mine).predicted('worldBoss', at('2026-10-25T01:00:00Z'), NOW)).toEqual({ identity: 'Azmodan' });
+    expect(source([]).predicted('worldBoss', at('2026-10-25T01:00:00Z'), NOW)).toEqual({ identity: 'Wandering Death' });
+    const told = [sighting({ at: '2026-10-24T18:00:00Z', boss: 'Ashava', provenance: 'reported' })];
+    expect(source(told).predicted('worldBoss', at('2026-10-25T01:00:00Z'), NOW)).toEqual({ identity: 'Wandering Death' });
+    expect(source(mine, WORLD_BOSS_ROTATION, () => true).predicted('worldBoss', at('2026-10-25T01:00:00Z'), NOW)).toEqual({ identity: 'Wandering Death' });
+    const arena = [sighting({ at: '2026-10-24T18:00:00Z', place: 'Caen Adar', region: 'scosglen' })];
+    expect(source(arena).predicted('worldBoss', at('2026-10-25T01:00:00Z'), NOW)).toEqual({ identity: 'Wandering Death' });
   });
 
-  it('re-pins to the player\'s own sighting, and not to a report or a shared record', () => {
-    // Seen: Ashava in Kehjistan at 18:00 means 14:30 was the first Ashava, so 21:30 is Azmodan in Scosglen.
-    const mine = [sighting({ at: '2026-10-24T18:00:00Z', boss: 'Ashava', region: 'kehjistan' })];
-    expect(source(mine).predicted('worldBoss', at('2026-10-24T21:30:00Z'), NOW)).toMatchObject({ identity: 'Azmodan', location: 'Caen Adar, Scosglen' });
-    const told = [sighting({ at: '2026-10-24T18:00:00Z', boss: 'Ashava', region: 'kehjistan', provenance: 'reported' })];
-    expect(source(told).predicted('worldBoss', at('2026-10-24T21:30:00Z'), NOW)).toMatchObject({ identity: 'Azmodan', location: 'The Crucible, Fractured Peaks' });
-    const shared = new IntelligenceDetailsSource({
-      reasons: DETAIL_REASONS, sightings: () => mine, segments: (k) => def(k).segments, registered: [], boundaries: [],
-      regions: LOCATIONS.regions, arenas: LOCATIONS.worldBossArenas, bosses: bossNames(), rotation: WORLD_BOSS_ROTATION!, isShared: () => true,
-    });
-    expect(shared.predicted('worldBoss', at('2026-10-24T21:30:00Z'), NOW)).toMatchObject({ identity: 'Azmodan', location: 'The Crucible, Fractured Peaks' });
+  it("never re-pins the boss order from a double spawn's second boss", () => {
+    // 01:00 on the 25th brings a second boss; one seen in Nahantu says nothing about the main order.
+    const second = [sighting({ at: '2026-10-25T01:00:00Z', boss: 'Ashava', place: 'The Cauldron', region: 'nahantu' })];
+    expect(source(second).predicted('worldBoss', at('2026-10-25T04:30:00Z'), NOW)).toEqual({ identity: 'Wandering Death' });
+  });
+
+  it("would place a spawn, and a double spawn's second boss, if an arena order were ever in the data", () => {
+    const base = WORLD_BOSS_ROTATION!;
+    const withArenas: Rotation = {
+      ...base,
+      cycle: base.cycle.map((s, i) => ({ ...s, region: i % 2 ? 'scosglen' : 'kehjistan' })),
+      second: { regions: ['nahantu', 'skovos'], pin: { startMs: at('2026-10-24T11:00:00Z'), position: 0 } },
+    };
+    const s = source([], withArenas);
+    // 01:00 on the 25th: place 0 of the cycle (Kehjistan here), and the double spawn after the 11:00 pin (Skovos).
+    expect(s.details('worldBoss', occ('2026-10-25T01:00:00Z'), NOW).location)
+      .toMatchObject({ value: "Seared Basin, Kehjistan; also Hatred's Mortar, Skovos", basis: 'predicted' });
+    expect(s.radarPredictions('worldBoss', at('2026-10-25T01:00:00Z'), NOW)).toEqual([
+      { region: 'kehjistan', boss: 'Wandering Death', confidence: 'inferred' },
+      { region: 'skovos', extra: true, confidence: 'inferred' },
+    ]);
   });
 
   it('says Unknown, with the reason, once the pin has run out', () => {
     const s = source([]);
     const late = at('2026-11-01T00:00:00Z');
     expect(s.details('worldBoss', occ('2026-11-01T00:30:00Z'), late).identity).toMatchObject({ known: false });
-    expect(s.radarPredictions('worldBoss', at('2026-11-01T00:30:00Z'), late)).toEqual([]);
     expect(s.rotationNote(late)).toMatchObject({ predicting: false });
     expect(s.rotationNote(NOW)).toMatchObject({ predicting: true, untilMs: at('2026-10-31T14:30:00Z') });
   });
 
   it('without a rotation, predicts no World Boss', () => {
-    expect(source([], null).radarPredictions('worldBoss', at('2026-10-24T18:00:00Z'), NOW)).toEqual([]);
+    expect(source([], null).predicted('worldBoss', at('2026-10-24T18:00:00Z'), NOW)).toEqual({});
   });
 });

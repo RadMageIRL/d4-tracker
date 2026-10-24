@@ -1,5 +1,31 @@
 # Changelog
 
+## v0.6.0 (unreleased)
+
+- Helltide region predictions. The Helltide card names the region of the Helltide in progress,
+  base-game and expansion, labeled Predicted, and the Event Radar lights it with a dashed,
+  breathing outline marked (Predicted). The base-game Helltide moves one region along a fixed cycle
+  every hour (Fractured Peaks, Scosglen, Dry Steppes, Kehjistan, Hawezar): community trackers'
+  records of the current region fit it in every recorded hour since 2026-04-29 19:00 UTC (2,083
+  hours). The expansion Helltide follows an hourly pattern (Skovos, none, Nahantu, none) with fewer
+  checks behind it. Later Helltides' regions are under "Later predictions".
+- Legion sites. The Legion card's Location reads "4 candidates · predicted"; open it for the
+  sites. The base-game Legion comes from one of two groups of four, and the group alternates every
+  Legion (community tracker records fit every recorded Legion since 2026-03-18). Which site it is,
+  is not predicted, so the radar shows a Legion dot only for a site seen in game. An expansion
+  Legion (Nahantu, Skovos) can run at the same time; one you log shows beside the candidates.
+  Chakhir and Viz-jun (Nahantu) are now Legion sites in the data.
+- Helltide is here: during a Helltide, select a region on the radar and mark it in one click. It
+  lights as seen until the Helltide ends, and the card shows it. A mark corrects its own Helltide
+  only; it does not move the cycle.
+- When to look: from an hour before a World Boss the card says "Check in-game map for boss and
+  location", and from ten minutes before a Legion "Check in-game map for exact location"; the hint
+  goes when the event starts.
+- World Boss arenas are no longer predicted, nor the region of a double spawn's second boss: no
+  arena order holds in tracker records. The boss is still predicted, and the arena list stays.
+- Less on the cards: a Boss or Location row with nothing known yet stays hidden (the reason is under
+  About this card).
+
 ## v0.5.0 (unreleased)
 
 - World Boss predictions. The card names the boss and arena of the next spawn, labeled Predicted

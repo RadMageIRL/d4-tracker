@@ -38,6 +38,8 @@ export interface MapHooks {
   chests: (regionId?: string) => ChestView[];
   /** A Helltide is in progress, so a chest can be marked active. */
   helltideActive: () => boolean;
+  /** Record that the Helltide in progress is in this region, seen in game. */
+  markHelltide: (regionId: string) => void;
   markActive: (spot: ChestView) => void;
   addSpot: (regionId: string, pos?: ArtPosition) => void;
   placeSpot: (spot: ChestView, pos: ArtPosition) => void;
@@ -282,12 +284,15 @@ export class SanctuaryMap {
   private showIntro(): void {
     this.focus = null;
     this.detail = null;
-    const lead = this.hooks.leads();
+    // The legend explains only what is on the radar now, so it never promises a dot that is not there.
+    const shown = new Set(this.lights().map((l) => l.kind));
+    const items = [
+      shown.has('helltide') ? h('li', { class: 'helltide' }, h('span', { class: 'key' }), 'Red outline: a Helltide is on there now.') : null,
+      shown.has('worldBoss') ? h('li', { class: 'boss' }, h('span', { class: 'key' }), 'Gold dot: the World Boss, where it was seen in game.') : null,
+      shown.has('legion') ? h('li', { class: 'legion' }, h('span', { class: 'key' }), 'Violet dot: the Legion, where it was seen in game.') : null,
+    ].filter((x): x is HTMLLIElement => !!x);
     this.info.replaceChildren(...nodes(
-      h('ul', { class: 'radar-legend' },
-        h('li', { class: 'helltide' }, h('span', { class: 'key' }), 'An orange-red outline: a Helltide is on there now.'),
-        h('li', { class: 'boss' }, h('span', { class: 'key' }), `A gold dot: the next World Boss, from ${lead.worldBoss} minutes before it spawns.`),
-        h('li', { class: 'legion' }, h('span', { class: 'key' }), `A violet dot: the next Legion, from ${lead.legion} minutes before it starts.`)),
+      items.length ? h('ul', { class: 'radar-legend' }, ...items) : null,
       h('p', { class: 'muted' }, this.data.intro),
     ));
   }
@@ -301,12 +306,20 @@ export class SanctuaryMap {
     places.addEventListener('click', () => this.openRegion(id));
     const all = h('button', { class: 'link', type: 'button' }, 'All regions');
     all.addEventListener('click', () => this.showIntro());
+    // One click when the game shows the Helltide here: the region lights until this Helltide ends.
+    const seen = here.some((l) => l.kind === 'helltide' && l.basis === 'seen');
+    let mark: HTMLButtonElement | null = null;
+    if (this.hooks.helltideActive() && !seen) {
+      mark = h('button', { class: 'btn small helltide-mark', type: 'button', title: 'The game shows the Helltide in this region now' }, 'Helltide is here');
+      mark.addEventListener('click', () => this.hooks.markHelltide(id));
+    }
+
     this.info.replaceChildren(...nodes(
       h('h3', {}, r.name),
       here.length
         ? h('ul', { class: 'radar-events' }, ...here.map((l) => h('li', { class: l.kind }, this.describe(l))))
         : h('p', { class: 'muted' }, 'Nothing known here right now. A region lights when its event was seen in game or is predicted.'),
-      h('div', { class: 'options' }, places, all),
+      h('div', { class: 'options' }, mark, places, all),
     ));
   }
 

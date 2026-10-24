@@ -3,8 +3,8 @@
 //   1. seen in game for this very occurrence (the player's log, or our shared data)
 //   2. reported to the player by someone else (shown as such, never as seen)
 //   3. predicted: a World Boss from the rotation in the data (src/engine/rotation.ts), re-pinned by
-//      the player's own sightings; a Helltide region or Legion site from an order the player's
-//      sightings bore out (src/engine/prediction.ts)
+//      the player's own sightings; a Helltide region from the region cycles in the data; for a
+//      Legion, the group of sites it comes from (candidates, never one site)
 //   4. otherwise unknown, with the reason
 // A sighting belongs to one occurrence, so it stops showing when that event is over.
 //
@@ -18,7 +18,7 @@ import {
   buildModel, observedAt, PAIR_JOIN, predictAt, type RegisteredRule, type SequenceField, type SequenceModel,
 } from '../engine/prediction';
 import type { RadarPrediction } from '../engine/radar';
-import { predictMain, predictSecond, repin, type Rotation, type RotationStep, type Sighted } from '../engine/rotation';
+import { cycleAt, predictMain, predictSecond, repin, type Cycle, type Rotation, type RotationStep, type Sighted } from '../engine/rotation';
 import type { Occurrence } from '../engine/schedule';
 import { segmentAt, type Segment } from '../engine/segments';
 import type { DetailReasons } from './offline-details';
@@ -43,6 +43,10 @@ export interface IntelligenceInput {
   rotation?: Rotation;
   /** Double spawns: every how many spawns, and whether a start brings one. */
   extra?: { every: number; has: (startMs: number) => boolean };
+  /** The Helltide region cycles (data/rotations.json); without them Helltide regions come from sightings. */
+  helltideCycles?: { base?: Cycle; expansion?: Cycle };
+  /** The Legion's site groups and their cycle (data/rotations.json); without them, sightings only. */
+  legionGroups?: { groups: Record<string, string[]>; cycle: Cycle };
 }
 
 export interface ModelSpec {
@@ -97,11 +101,13 @@ export class IntelligenceDetailsSource implements DetailsSource {
         { key: 'place', field: 'place', label: 'Arena order', domain: baseArenas, include: (o) => this.isMainSpawn(o) },
         { key: 'pair', field: 'pair', label: 'Boss and arena order', domain: input.bosses.length * baseArenas, include: (o) => this.isMainSpawn(o) },
       ],
-      legion: [
+      // A Legion's site group comes from the data; without it, the player's sightings can find an order.
+      legion: input.legionGroups ? [] : [
         { key: 'place', field: 'place', label: 'Site order', domain: 0 },
         { key: 'region', field: 'region', label: 'Region order', domain: input.regions.length },
       ],
-      helltide: [
+      // Helltide regions come from the cycles; without them, the player's sightings can find an order.
+      helltide: input.helltideCycles?.base ? [] : [
         { key: 'base', field: 'region', label: 'Base-game region order', domain: base.length, include: isBase },
         { key: 'expansion', field: 'region', label: 'Expansion region order', domain: this.expansionRegions.size, include: isExpansion },
       ],
@@ -186,6 +192,28 @@ export class IntelligenceDetailsSource implements DetailsSource {
     };
   }
 
+  /** The Helltide regions the cycles give for the Helltide starting at startMs (none under another schedule). */
+  helltideAt(startMs: number): { base: string | null; expansion: string | null; pinMs: number } | null {
+    const cycles = this.input.helltideCycles;
+    if (!cycles?.base) return null;
+    const segs = this.input.segments('helltide');
+    const seg = segmentAt(segs, startMs);
+    if (!seg) return null;
+    const at = (c: Cycle | undefined) => (c && segmentAt(segs, c.pin.startMs)?.fromMs === seg.fromMs ? cycleAt(c, startMs, seg.schedule.periodMs) : null);
+    return { base: at(cycles.base), expansion: at(cycles.expansion), pinMs: cycles.base.pin.startMs };
+  }
+
+  /** The group of sites the Legion starting at startMs comes from (none under another schedule). */
+  legionGroupAt(startMs: number): string[] | null {
+    const lg = this.input.legionGroups;
+    if (!lg) return null;
+    const segs = this.input.segments('legion');
+    const seg = segmentAt(segs, startMs);
+    if (!seg || segmentAt(segs, lg.cycle.pin.startMs)?.fromMs !== seg.fromMs) return null;
+    const id = cycleAt(lg.cycle, startMs, seg.schedule.periodMs);
+    return id ? lg.groups[id] ?? null : null;
+  }
+
   /** "Caen Adar, Scosglen": the arena of a region when the data has exactly one there. */
   private arenaIn(region: string): string {
     const here = this.input.arenas.filter((a) => a.region === region);
@@ -205,8 +233,23 @@ export class IntelligenceDetailsSource implements DetailsSource {
     const out: Prediction = {};
     if (kind === 'worldBoss' && this.input.rotation) {
       const r = this.rotationAt(startMs);
-      if (r?.main) { out.identity = r.main.boss; out.location = this.arenaIn(r.main.region); }
+      if (r?.main) {
+        out.identity = r.main.boss;
+        if (r.main.region) out.location = this.arenaIn(r.main.region);
+      }
       if (r?.second) out.second = this.arenaIn(r.second);
+      return out;
+    }
+    if (kind === 'helltide' && this.input.helltideCycles?.base) {
+      const c = this.helltideAt(startMs);
+      const regions = [c?.base, c?.expansion].filter((r): r is string => !!r).map((r) => this.regionName(r));
+      if (regions.length) out.location = regions.join(' and ');
+      return out;
+    }
+    if (kind === 'legion' && this.input.legionGroups) {
+      const sites = this.legionGroupAt(startMs);
+      const regions = [...new Set((sites ?? []).map((s) => this.placeRegion('legion', s)).filter((r): r is string => !!r))];
+      if (sites?.length) out.location = `${sites.length} candidates: ${regions.map((r) => this.regionName(r)).join(', ')}`;
       return out;
     }
     const m = this.models(kind, nowMs);
@@ -237,10 +280,17 @@ export class IntelligenceDetailsSource implements DetailsSource {
     if (kind === 'worldBoss' && this.input.rotation) {
       const r = this.rotationAt(startMs);
       return [
-        ...(r?.main ? [{ region: r.main.region, boss: r.main.boss, confidence: 'inferred' as const }] : []),
+        // Only a predicted arena places a spawn; a predicted boss alone lights nothing.
+        ...(r?.main?.region ? [{ region: r.main.region, boss: r.main.boss, confidence: 'inferred' as const }] : []),
         ...(r?.second ? [{ region: r.second, extra: true, confidence: 'inferred' as const }] : []),
       ];
     }
+    if (kind === 'helltide' && this.input.helltideCycles?.base) {
+      const c = this.helltideAt(startMs);
+      return [c?.base, c?.expansion].filter((r): r is string => !!r).map((region) => ({ region, confidence: 'inferred' as const }));
+    }
+    // A group of possible Legion sites names no one place, so it lights nothing.
+    if (kind === 'legion' && this.input.legionGroups) return [];
     const m = this.models(kind, nowMs);
     const trusted = (key: string): { v: string; confidence: 'confirmed' | 'inferred' } | null => {
       const model = m[key];
@@ -334,11 +384,45 @@ export class IntelligenceDetailsSource implements DetailsSource {
       // Regions in the data's order (base-game first), whatever order they were logged in.
       const order = (o: Observation) => this.input.regions.findIndex((x) => x.id === o.region);
       const sorted = [...here].sort((a, b) => order(a) - order(b));
-      return { location: orElse(gather(sorted, regionOf), predictedFact(p.location, ['base', 'expansion']), fallbackLocation) };
+      const g = gather(sorted, regionOf);
+      if (this.input.helltideCycles?.base) {
+        // A Helltide seen in game wins for its kind (base-game or expansion); the other stays predicted.
+        const c = this.helltideAt(occurrence.startMs);
+        const seenKinds = new Set(sorted.filter((o) => isSeen(o) && o.region).map((o) => (this.expansionRegions.has(o.region!) ? 'expansion' : 'base')));
+        const predicted = c ? [seenKinds.has('base') ? null : c.base, seenKinds.has('expansion') ? null : c.expansion]
+          .filter((r): r is string => !!r).map((r) => this.regionName(r)) : [];
+        const source = c ? `Predicted from the Helltide region cycle, pinned to the Helltide of ${new Date(c.pinMs).toISOString().slice(0, 16).replace('T', ' ')} UTC` : '';
+        if (g.fact && predicted.length) return { location: known(`${g.fact.value} (seen); ${predicted.join(' and ')} (predicted)`, `${g.fact.source}. ${source}.`) };
+        return { location: orElse(g, predicted.length ? known(predicted.join(' and '), source, 'predicted', 'inferred') : null, fallbackLocation) };
+      }
+      return { location: orElse(g, predictedFact(p.location, ['base', 'expansion']), fallbackLocation) };
     }
     if (kind === 'legion') {
       const where = (o: Observation) => this.placeLabel('legion', o.place, o.region);
-      return { location: orElse(gather(here, where), predictedFact(p.location, ['place', 'region']), fallbackLocation) };
+      if (!this.input.legionGroups) return { location: orElse(gather(here, where), predictedFact(p.location, ['place', 'region']), fallbackLocation) };
+      // Two Legions can run at once, as with Helltides: the base-game one (its group is predicted)
+      // and one in an expansion region (not predicted). Each kind is judged on its own sightings.
+      const inExpansion = (o: Observation) => {
+        const r = o.region ?? (o.place ? this.placeRegion('legion', o.place) : undefined);
+        return !!r && this.expansionRegions.has(r);
+      };
+      const g = gather(here.filter((o) => !inExpansion(o)), where);
+      const x = gather(here.filter(inExpansion), where);
+      const also = x.fact ? x.fact.value : undefined;
+      const told = [...g.told, ...x.told];
+      const toldNote = told.length ? ` Reported to you, not checked in game: ${told.join(' and ')}.` : '';
+      // The base-game site seen in game wins; otherwise the group it comes from, as candidates.
+      const sites = g.fact ? null : this.legionGroupAt(occurrence.startMs);
+      if (sites?.length) {
+        const source = `Predicted: the base-game Legion's site group alternates every Legion, so it is at one of these ${sites.length} sites; which one is not predicted. An expansion-region Legion can run at the same time; it is not predicted.${toldNote}`;
+        return {
+          location: known(`${sites.length} candidates`, source, 'predicted', 'inferred'),
+          candidates: sites.map((s) => ({ place: s, region: this.regionName(this.placeRegion('legion', s) ?? '') })),
+          ...(also ? { also } : {}),
+        };
+      }
+      const seen = g.fact && also ? known(`${g.fact.value}; also ${also}`, g.fact.source, 'seen') : g.fact ?? (also ? known(`also ${also}`, x.fact!.source, 'seen') : null);
+      return { location: orElse({ fact: seen, told }, null, fallbackLocation) };
     }
     // World Boss: the main spawn first; a second boss in an expansion arena is added as "also".
     const main = here.filter((o) => this.isMainSpawn(o));

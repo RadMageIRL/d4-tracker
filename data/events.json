@@ -40,7 +40,7 @@
         "location": {
           "confidence": "unknown",
           "hint": "shown in game when it begins",
-          "reason": "No source documents or claims an order, and Blizzard notes show a Helltide can return to the region it was just in. The in-game map shows the region once it begins. Since Vessel of Hatred a second Helltide can run in an expansion region at the same time. Mark it on this card and it shows until the Helltide ends."
+          "reason": "Not predicted for this Helltide: the region cycle is pinned under the schedule in force, and a new schedule needs a new pin. The in-game map shows the region once it begins; a second Helltide can run in an expansion region at the same time. Select the region on the radar and mark it, and it shows until the Helltide ends."
         }
       },
       "announcedChanges": [
@@ -61,7 +61,7 @@
         {
           "field": "region",
           "confidence": "unknown",
-          "note": "Blizzard documents no order for Helltide regions. Our sightings can test for one; a fit would be Inferred at most."
+          "note": "Blizzard documents no order for Helltide regions. Predicted from the Helltide region cycle."
         }
       ]
     },
@@ -108,7 +108,7 @@
         "location": {
           "confidence": "unknown",
           "hint": "shown in game before it spawns",
-          "reason": "One of the arenas, one per region (listed in each region's details on the radar). Not predicted for this spawn (see Boss). The in-game map shows which about an hour before the spawn; log it and the card and the radar show it."
+          "reason": "One of the fixed arenas, one per region (listed in each region's details on the radar). Which one a spawn uses is not predicted: no arena order holds. The in-game map shows it about an hour before the spawn."
         }
       },
       "announcedChanges": [],
@@ -120,7 +120,7 @@
           "sources": [
             {
               "kind": "observation",
-              "title": "Our in-game sighting of Ashava as the World Boss, 2026-10-24"
+              "title": "Ashava seen in game as the World Boss, 2026-10-24"
             }
           ]
         },
@@ -151,12 +151,12 @@
         {
           "field": "boss",
           "confidence": "unknown",
-          "note": "Blizzard documents no boss order. The World Boss rotation (data/rotations.json) predicts it, labeled Predicted; without one, our sightings can test for an order."
+          "note": "Blizzard documents no boss order. Predicted from the World Boss rotation."
         },
         {
           "field": "place",
           "confidence": "unknown",
-          "note": "Blizzard documents no arena order. The World Boss rotation (data/rotations.json) predicts it, labeled Predicted; without one, our sightings can test for an order."
+          "note": "Blizzard documents no arena order, and none holds in tracker records: every boss is seen in every region. The arena is not predicted; the in-game map shows it about an hour before the spawn."
         }
       ],
       "extraSpawn": {
@@ -230,7 +230,7 @@
         "location": {
           "confidence": "unknown",
           "hint": "marked in game shortly before",
-          "reason": "No source documents or claims an order. The in-game map marks it shortly before it starts."
+          "reason": "Not predicted for this Legion: the site groups are pinned under the schedule in force, and a new schedule needs a new pin. The in-game map marks the site shortly before it starts; log it and the card shows it."
         }
       },
       "announcedChanges": [],
@@ -238,7 +238,7 @@
         {
           "field": "place",
           "confidence": "unknown",
-          "note": "Blizzard documents no order for Legion sites. Our sightings can test for one; a fit would be Inferred at most."
+          "note": "Blizzard documents no order for Legion sites. The group of four candidates is predicted; the site within it is not."
         }
       ]
     }

@@ -14,20 +14,24 @@ Live at https://radmagelabs.com/d4/
 - **Helltide.** Whether one is active (its card breathes while it is), the time left and when it
   ends, the next start, and the three after that. Mark the region it is in (a base-game and an
   expansion Helltide can run at once) and the card and the radar show it until that Helltide ends.
-- **World Boss.** A countdown to the next spawn, when the last one spawned, and the next three.
-  Every fourth spawn brings a second World Boss in an expansion region, and the card says so. Log
-  the boss and arena the game shows ahead of a spawn and the card shows them for that spawn.
-- **Legion.** A countdown to the next Legion event, when the last one started, and the next three.
+- **World Boss.** A countdown to the next spawn, when the last one spawned, the next three, and
+  the predicted boss. Every fourth spawn brings a second World Boss in an expansion region, and the
+  card says so. From an hour before a spawn the card says to check the in-game map, which then shows
+  the boss and its arena.
+- **Legion.** A countdown to the next Legion event, when the last one started, the next three, and
+  the four candidate sites. From ten minutes before, the card says to check the in-game map.
 - **Coming up.** Every start in the next four hours in one list.
 - **Season.** The live season, when it started and how many days in it is, its end and the next
   season's start once Blizzard announces them, announced windows such as a PTR, and every past
   season with its dates and length.
 - **Sanctuary Event Radar.** The seven regions at a glance: a region with a Helltide on breathes
-  orange-red, the next World Boss is a gold dot with its boss and time (from 30 minutes before, or
-  15 or 60 as you choose), the next Legion a violet dot (from 10 minutes before). A marker pulses
+  red (a dashed outline, as the game's map draws it), and a World Boss or Legion seen in game is a
+  gold or violet dot in its region (from 30 minutes before a World Boss, or 15 or 60 as you choose,
+  and 10 minutes before a Legion). The legend lists only what is shown. A marker pulses
   only when its event is close. A region lights when its event's place is seen in game or
-  predicted (labeled Predicted), the same as on the cards. Unlit means not known yet. On a phone
-  the same events are written out under it, one line each.
+  predicted (labeled Predicted), the same as on the cards. Unlit means not known yet. During a
+  Helltide, select the region the game shows and choose **Helltide is here**: it lights as seen
+  until the Helltide ends. On a phone the same events are written out under it, one line each.
   Regions sit where published descriptions place them (a test checks each), but it is a regional
   overview, not a navigation map.
 - **Places and chest spots** (a region's details, secondary): its waypoints, World Boss arena and
@@ -70,22 +74,37 @@ an expansion region. That is Inferred: Blizzard does not document it, and every 
 report of two at once on Blizzard's forums, from October 2024 to September 2026, falls on these
 spawns.
 
-**Predicted** marks a World Boss's boss and arena worked out from a rotation rather than seen.
-Blizzard documents no order, so a prediction is never Confirmed and can be wrong. The tracker
-follows the 8-spawn boss order community trackers publish, with the arena of each spawn, pinned to
-a spawn checked in game (`data/rotations.json`). First-hand reports show the place in that order
-shifting between weeks, so each pin is used for 7 days; after that the card says Unknown until the
-next pin. Log the boss and arena you see in game and the rotation re-pins to it, in your browser.
-Every fourth spawn's second boss takes turns between Nahantu and Skovos; which boss it is, is not
-predicted.
+**Predicted** marks a World Boss's boss worked out from a rotation rather than seen. Blizzard
+documents no order, so a prediction is never Confirmed and can be wrong. The tracker follows the
+8-spawn boss order community trackers publish, pinned to a spawn checked in game
+(`data/rotations.json`). First-hand reports show the place in that order shifting between weeks, so
+each pin is used for 7 days. A boss you log as seen re-pins it, in your browser. The arena is not
+predicted: tracker records follow no arena order, and every boss turns up in every region. The game
+names both the boss and the arena on its map about an hour before the spawn.
 
-For Helltide regions and Legion sites nothing documents an order. One sighting confirms that a
-place exists and is used. A repeating order is never Confirmed from sightings, however many: only
-Blizzard's own words could confirm it. An order found in sightings becomes Inferred only after it
-predicts later sightings: **at least three correct predictions, none wrong, on sightings it was not
-found in, with a lucky match under 1%** (judged against a guesser who knows how often each value
-has turned up). A sighting that breaks it withdraws it, and learning starts again from there, with
-a stricter bar each time. Only then does the card show a prediction, labeled as one.
+Helltide regions are Predicted too. The base-game Helltide moves one region along a fixed cycle
+every hour (Fractured Peaks, Scosglen, Dry Steppes, Kehjistan, Hawezar, then again), so it never
+stays in one region two hours running: community trackers' records of the current region fit this
+in every recorded hour since 2026-04-29 19:00 UTC, 2,083 hours across two season starts. The
+expansion Helltide follows an hourly pattern (Skovos, none, Nahantu, none) that has fewer checks
+behind it. A region you mark shows as seen for that Helltide only; it does not move the cycle. A
+new Helltide schedule (Season 16 moves expansion Helltides to the half hour) stops the predictions
+until the cycles are pinned again.
+
+Legion sites are predicted as a group. The base-game Legion comes from one of two groups of four
+sites (Kor Dragan, Carrowcrest Ruins, Dilapidated Aqueducts, Alcarnus; or Haunted Wreckage,
+Crusader's Monument, Norgoi Vigil, Temple of Rot), and the group alternates every Legion: community
+tracker records of the group fit this for every recorded Legion since 2026-03-18. The Legion card
+shows "4 possible sites", folded, labeled Predicted; which one it is, is not predicted, so the radar
+shows a Legion only once its site is seen. An expansion-region Legion (Nahantu: Chakhir or Viz-jun;
+Skovos) can run at the same time; it is not predicted, and one you log shows beside the candidates.
+
+Without these models in the data, the tracker looks for a repeating order in your own sightings
+instead. Such an order is never Confirmed, however many sightings fit: only Blizzard's own words
+could confirm it. It becomes Inferred only after it predicts later sightings: **at least three
+correct predictions, none wrong, on sightings it was not found in, with a lucky match under 1%**
+(judged against a guesser who knows how often each value has turned up). A sighting that breaks it
+withdraws it, and learning starts again from there, with a stricter bar each time.
 
 Announced changes are part of the data. Season 16 starts Helltides on the hour in base-game zones
 and on the half hour in expansion zones (3.3.0 PTR notes); once its date is announced, the new
@@ -93,11 +112,12 @@ schedule is added with that date and the switch happens on its own.
 
 ## What it does not know
 
-- **Which region has the Helltide** and **where the Legion is.** No source, Blizzard's or a
-  player's, documents an order for either. The game shows them shortly before or as they start:
-  log them and the cards show them. If an order exists, logged sightings will find it.
-- **Which World Boss and arena, for certain.** They are predicted, not known: the order has
-  shifted between weeks before, and a prediction is wrong until the rotation is re-pinned.
+- **Which site the Legion is at.** The card lists the four possible sites of the base-game
+  Legion; the game marks the site shortly before it starts: log it and the card shows it.
+- **Which arena the World Boss uses.** The in-game map shows it about an hour before the spawn.
+- **Which World Boss, and which Helltide regions, for certain.** They are predicted, not known: the
+  World Boss order has shifted between weeks before, and the Helltide cycle could change with a
+  patch.
 - **Which chests are active right now.** Chest spots are a fixed set in each Helltide zone and the
   active ones move during a Helltide, by players' reports. Only someone in that Helltide can say
   which are active; a region's details keep the spots you log and let you mark the active ones.
@@ -198,7 +218,8 @@ long ago it was checked and flags anything older than 60 days. After a patch or 
   with a Blizzard quote or our own sighting (a chest spot only with our own sighting).
 - `data/rotations.json`: when a World Boss is seen in game that the rotation got wrong, move the
   pin to that spawn (`pin.start` and its `position` in the cycle); when a pin runs out, add a new
-  one. Register an order someone describes, with its source and the day it was added; only
+  one. Do the same for a Helltide region (`helltide.base` or `helltide.expansion`) checked in game
+  that the cycle got wrong, and after a new Helltide schedule starts. Register an order someone describes, with its source and the day it was added; only
   sightings after that day test it. Add a reset when a patch is known to restart an order.
 
 `npm test` checks every file: confirmed claims need a Blizzard source (with its quoted words) or

@@ -2,35 +2,62 @@
   "checkedOn": "2026-10-24",
   "worldBoss": {
     "cycle": [
-      { "boss": "Wandering Death", "region": "dry_steppes" },
-      { "boss": "Wandering Death", "region": "fractured_peaks" },
-      { "boss": "Avarice", "region": "scosglen" },
-      { "boss": "Avarice", "region": "fractured_peaks" },
-      { "boss": "Ashava", "region": "scosglen" },
-      { "boss": "Ashava", "region": "kehjistan" },
-      { "boss": "Azmodan", "region": "scosglen" },
-      { "boss": "Azmodan", "region": "fractured_peaks" }
+      { "boss": "Wandering Death" },
+      { "boss": "Wandering Death" },
+      { "boss": "Avarice" },
+      { "boss": "Avarice" },
+      { "boss": "Ashava" },
+      { "boss": "Ashava" },
+      { "boss": "Azmodan" },
+      { "boss": "Azmodan" }
     ],
     "pin": { "start": "2026-10-24T14:30:00Z", "position": 5 },
     "holdDays": 7,
-    "second": {
-      "regions": ["nahantu", "skovos"],
-      "pin": { "start": "2026-09-18T21:00:00Z", "position": 0 }
-    },
-    "basis": "Predicted, not confirmed: Blizzard documents no order. The boss order and arenas community trackers publish, pinned to a spawn checked in game. First-hand reports show the place in the order shifting between weeks, so each pin is used for 7 days. The second boss of a double spawn takes turns between Nahantu and Skovos; which boss it is varies in first-hand reports, so it is not predicted.",
+    "basis": "Predicted, not confirmed: Blizzard documents no order. The 8-spawn boss order community trackers publish, pinned to a spawn checked in game. First-hand reports show the place in the order shifting between weeks, so each pin is used for 7 days. Which arena a spawn uses is not predicted: no arena order holds in tracker records, and every boss is seen in every region. The second boss of a double spawn is not predicted either.",
     "sources": [
       {
         "kind": "community",
-        "title": "The 8-spawn World Boss order and the arena of each spawn that community trackers publish (read 2026-10-23 and 2026-10-24)"
+        "title": "The 8-spawn World Boss order community trackers publish (read 2026-10-23 and 2026-10-24)"
       },
       {
         "kind": "observation",
         "title": "A World Boss spawn checked in game, used as the pin"
+      }
+    ]
+  },
+  "helltide": {
+    "base": {
+      "cycle": ["fractured_peaks", "scosglen", "dry_steppes", "kehjistan", "hawezar"],
+      "pin": { "start": "2026-04-29T19:00:00Z", "position": 3 }
+    },
+    "expansion": {
+      "cycle": ["skovos", null, "nahantu", null],
+      "pin": { "start": "2026-04-29T20:00:00Z", "position": 0 }
+    },
+    "basis": "Predicted, not confirmed: Blizzard documents no order. The base-game Helltide moves one region along this cycle every hour: community trackers' records of the current region fit it in every recorded hour since 2026-04-29 19:00 UTC (2,083 hours across two season starts, never the same region twice in a row). The expansion Helltide's region (Skovos, none, Nahantu, none, by the hour) is the hourly pattern one tracker uses, with fewer checks behind it.",
+    "sources": [
+      {
+        "kind": "community",
+        "title": "Community tracker records of the current Helltide region, every recorded hour from 2026-03-18 to 2026-10-24 (read 2026-10-24); from 2026-04-29 19:00 UTC each one fits the cycle"
       },
       {
         "kind": "community",
-        "title": "Blizzard forums, first-hand report (2026-09-18): Wandering Death in Nahantu as the second boss of a double spawn",
-        "url": "https://us.forums.blizzard.com/en/d4/t/268021/72"
+        "title": "The hourly expansion Helltide pattern a community tracker uses (read 2026-10-24)"
+      }
+    ]
+  },
+  "legion": {
+    "groups": {
+      "a": ["Kor Dragan", "Carrowcrest Ruins", "Dilapidated Aqueducts", "Alcarnus"],
+      "b": ["Haunted Wreckage", "Crusader's Monument", "Norgoi Vigil", "Temple of Rot"]
+    },
+    "cycle": ["a", "b"],
+    "pin": { "start": "2026-03-18T05:20:00Z", "position": 0 },
+    "basis": "Predicted, not confirmed: Blizzard documents no order. The base-game Legion's site comes from one of two groups of four, and the group alternates every Legion: community tracker records of the group fit this for every recorded Legion since 2026-03-18 (4,578 of them). Which site of the group it is, is not predicted. Since the expansions an expansion-region Legion (Nahantu, Skovos) can run at the same time; it is not predicted.",
+    "sources": [
+      {
+        "kind": "community",
+        "title": "Community tracker records of the Legion site group, every recorded Legion from 2026-03-18 to 2026-10-24 (read 2026-10-24); each one alternates"
       }
     ]
   },

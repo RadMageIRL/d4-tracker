@@ -74,7 +74,16 @@
     { "region": "skovos", "name": "Hatred's Mortar", "confidence": "inferred", "sources": ["community-arenas"] }
   ],
   "legionSites": [
-    { "region": "fractured_peaks", "name": "Kor Dragan", "confidence": "inferred", "note": "In the northwest of the region.", "sources": ["community-legion"] },
+    { "region": "fractured_peaks", "name": "Kor Dragan", "confidence": "inferred", "note": "In the northwest of the region.", "sources": ["community-legion", "community-legion-sites"] },
+    { "region": "scosglen", "name": "Carrowcrest Ruins", "confidence": "inferred", "note": "Also spelled Carrownest Ruins in one guide.", "sources": ["community-legion-sites"] },
+    { "region": "kehjistan", "name": "Dilapidated Aqueducts", "confidence": "inferred", "sources": ["community-legion-sites"] },
+    { "region": "kehjistan", "name": "Alcarnus", "confidence": "inferred", "sources": ["community-legion-sites"] },
+    { "region": "hawezar", "name": "Haunted Wreckage", "confidence": "inferred", "sources": ["community-legion-sites"] },
+    { "region": "hawezar", "name": "Crusader's Monument", "confidence": "inferred", "note": "Spelled Crusader's Monument in the guides; one tracker writes Crusaders Monument.", "sources": ["community-legion-sites"] },
+    { "region": "dry_steppes", "name": "Norgoi Vigil", "confidence": "inferred", "sources": ["community-legion-sites"] },
+    { "region": "dry_steppes", "name": "Temple of Rot", "confidence": "inferred", "sources": ["community-legion-sites"] },
+    { "region": "nahantu", "name": "Chakhir", "confidence": "inferred", "note": "An expansion Legion inside the Chakhir Stronghold, which a party must have conquered. Runs alongside the base-game Legion.", "sources": ["community-legion-expansion"] },
+    { "region": "nahantu", "name": "Viz-jun", "confidence": "inferred", "note": "An expansion Legion site.", "sources": ["community-legion-expansion"] },
     { "region": "nahantu", "name": "Basin of Souls", "confidence": "inferred", "note": "Nahantu's Legion is an escort: an orb is guarded on its way to the Basin of Souls and back.", "sources": ["community-legion"] }
   ],
   "chestTypes": [
@@ -149,6 +158,14 @@
     "community-legion": {
       "kind": "community",
       "title": "A community Gathering Legions guide, updated 2026-06-27 (research 2026-10-23); not confirmed by Blizzard or in game"
+    },
+    "community-legion-expansion": {
+      "kind": "community",
+      "title": "Community Legion guides naming Chakhir and Viz-jun in Nahantu as Legion sites (Game Rant, research 2026-10-23; Wowhead, read 2026-10-24); not all checked in game"
+    },
+    "community-legion-sites": {
+      "kind": "community",
+      "title": "Legion site lists in community guides (Game8, Dualshockers, Game Rant, TheGamer and others; research 2026-10-23), and the two groups of four sites a community tracker shows (read 2026-10-24); not all checked in game"
     },
     "community-research": {
       "kind": "community",

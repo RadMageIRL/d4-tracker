@@ -6,7 +6,7 @@ import { LocalScheduleSource } from './adapters/local-schedule';
 import type { ScheduleSource } from './adapters/types';
 import {
   bossNames, DETAIL_REASONS, eventDefinitions, EVENTS, knownPlaces, LOCATIONS, MAP_DATA, REGISTERED_RULES, resetBoundaries,
-  ROTATIONS, SEASONS, SHARED_SIGHTINGS, WORLD_BOSS_ROTATION,
+  HELLTIDE_CYCLES, LEGION_GROUPS, ROTATIONS, SEASONS, SHARED_SIGHTINGS, WORLD_BOSS_ROTATION,
 } from './data';
 import { chestSpots, chestState, type SharedSpot } from './engine/chests';
 import { detectResume, estimateClock, SAMPLE_GAP_MS, type ClockEstimate, type ClockSample } from './engine/clock';
@@ -45,6 +45,8 @@ const detailsSource = new IntelligenceDetailsSource({
   sites: LOCATIONS.legionSites.map((s) => ({ name: s.name, region: s.region })),
   isShared: (o) => SHARED_IDS.has(o.id),
   ...(WORLD_BOSS_ROTATION ? { rotation: WORLD_BOSS_ROTATION } : {}),
+  helltideCycles: HELLTIDE_CYCLES,
+  ...(LEGION_GROUPS ? { legionGroups: LEGION_GROUPS } : {}),
   ...(WORLD_BOSS?.extra ? { extra: { every: WORLD_BOSS.extra.every, has: (startMs: number) => hasExtraSpawn(WORLD_BOSS, startMs) } } : {}),
 });
 
@@ -153,6 +155,12 @@ const map = new SanctuaryMap(MAP_DATA, {
   setRadar: (id, on) => change((p) => { p.radar[id] = on; }),
   leads: () => prefs.radarLead,
   helltideActive: () => !!activeOccurrence(segmentsOf('helltide'), nowMs()),
+  markHelltide: (regionId) => {
+    sightingsPanel.quickSave({
+      event: 'helltide', at: new Date(nowMs()).toISOString(), timing: 'during', region: regionId,
+      ...(realmFilter() ? { realm: realmFilter() } : {}),
+    }, `Helltide marked in ${LOCATIONS.regions.find((r) => r.id === regionId)?.name ?? regionId} until it ends.`);
+  },
   markActive: (c) => {
     sightingsPanel.quickSave({
       event: 'helltideChest', at: new Date(nowMs()).toISOString(), timing: 'during', region: c.region, place: c.name, chest: c.type,
@@ -217,8 +225,8 @@ function rotationNotes(now: number, timeZone: string): OrderNote[] {
   const until = calendarDate(r.untilMs, timeZone);
   const pin = `Pinned to a spawn on ${calendarDate(r.pinMs, timeZone)}`;
   return [{
-    label: 'Boss and arena', confidence: r.predicting ? 'inferred' : 'unknown', status: r.predicting ? 'Predicted' : 'Not predicted',
-    text: `${ROTATIONS.worldBoss?.basis ?? ''} ${pin}, ${r.predicting ? `predicted through ${until}` : `which ran out on ${until}`}. Log the boss and arena you see in game, and the rotation re-pins to it.`,
+    label: 'Boss', confidence: r.predicting ? 'inferred' : 'unknown', status: r.predicting ? 'Predicted' : 'Not predicted',
+    text: `${ROTATIONS.worldBoss?.basis ?? ''} ${pin}, ${r.predicting ? `predicted through ${until}` : `which ran out on ${until}`}. A boss logged as seen re-pins it.`,
   }];
 }
 

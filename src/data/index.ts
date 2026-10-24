@@ -10,7 +10,7 @@ import type { DetailReasons } from '../adapters/offline-details';
 import type { EventDefinition, EventKind, TimedSegment } from '../engine/events';
 import { parseFile, type Observation, type ObservedEvent } from '../engine/observations';
 import type { RegisteredRule } from '../engine/prediction';
-import type { Rotation } from '../engine/rotation';
+import type { Cycle, Rotation } from '../engine/rotation';
 import { anchorEvidence, MIN_DAYS, MIN_MATCHING } from '../engine/verification';
 import type { MapData, MapMarker, MapRegion } from './map';
 import {
@@ -33,6 +33,22 @@ export const WORLD_BOSS_ROTATION: Rotation | undefined = wb && {
   holdMs: wb.holdDays * DAY_MS,
   ...(wb.second ? { second: { regions: wb.second.regions, pin: { startMs: Date.parse(wb.second.pin.start), position: wb.second.pin.position } } } : {}),
 };
+
+const ht = ROTATIONS.helltide;
+const cycleOf = (c: { cycle: (string | null)[]; pin: { start: string; position: number } }): Cycle =>
+  ({ values: c.cycle, pin: { startMs: Date.parse(c.pin.start), position: c.pin.position } });
+
+/** The Helltide region cycles predictions come from (data/rotations.json), base-game and expansion. */
+export const HELLTIDE_CYCLES: { base?: Cycle; expansion?: Cycle } = ht
+  ? { base: cycleOf(ht.base), ...(ht.expansion ? { expansion: cycleOf(ht.expansion) } : {}) }
+  : {};
+
+const lg = ROTATIONS.legion;
+
+/** The Legion's site groups and the cycle they come in (data/rotations.json). */
+export const LEGION_GROUPS: { groups: Record<string, string[]>; cycle: Cycle } | undefined = lg
+  ? { groups: lg.groups, cycle: cycleOf({ cycle: lg.cycle, pin: lg.pin }) }
+  : undefined;
 
 /** Orders registered for our sightings to test; none is shown until sightings bear it out. */
 export const REGISTERED_RULES: RegisteredRule[] = ROTATIONS.rules.map((r) => ({
@@ -157,7 +173,7 @@ function buildMap(): MapData {
   ];
   return {
     banner: 'Regional event overview. Locations are approximate; use the in-game map for navigation.',
-    intro: 'A region lights when its event is seen in game (log it from a card) or predicted, labeled Predicted: World Bosses from the boss and arena rotation, re-pinned by what you log. Unlit means not known yet, never "nothing there". Select a region for its events, places and chest spots.',
+    intro: 'A region lights when its event is seen in game or predicted (labeled Predicted). Unlit means not known yet, never "nothing there". Select a region for its events, places and chest spots, or to mark the Helltide there.',
     regions,
     markers,
   };

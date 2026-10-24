@@ -222,8 +222,11 @@ export interface RotationPinRecord {
  * Every prediction from it is labeled Predicted.
  */
 export interface WorldBossRotationRecord {
-  /** The main spawn, in order: the boss by its roster name and its arena's region by id. */
-  cycle: { boss: string; region: string }[];
+  /**
+   * The main spawn, in order: the boss by its roster name, and its arena's region by id only if an
+   * arena order is ever found (none is today).
+   */
+  cycle: { boss: string; region?: string }[];
   pin: RotationPinRecord;
   /** How many days after its pin a spawn is predicted. */
   holdDays: number;
@@ -234,9 +237,39 @@ export interface WorldBossRotationRecord {
   sources: Source[];
 }
 
+/** A Helltide region cycle: one step per Helltide, null where none of that kind runs. */
+export interface HelltideCycleRecord {
+  cycle: (string | null)[];
+  pin: RotationPinRecord;
+}
+
+/** The Helltide regions predictions come from, base-game and expansion apart (labeled Predicted). */
+export interface HelltideRotationRecord {
+  base: HelltideCycleRecord;
+  expansion?: HelltideCycleRecord;
+  basis: string;
+  sources: Source[];
+}
+
+/**
+ * The Legion's site group predictions come from: named groups of sites, taken in turn one per
+ * Legion. Only the group is predicted, never the site within it.
+ */
+export interface LegionRotationRecord {
+  /** Group id -> its sites, by name as in locations.json legionSites. */
+  groups: Record<string, string[]>;
+  /** Group ids, in order. */
+  cycle: string[];
+  pin: RotationPinRecord;
+  basis: string;
+  sources: Source[];
+}
+
 export interface RotationsFile {
   checkedOn: string;
   worldBoss?: WorldBossRotationRecord;
+  helltide?: HelltideRotationRecord;
+  legion?: LegionRotationRecord;
   rules: RuleRecord[];
   resets: ResetRecord[];
 }
@@ -428,19 +461,19 @@ export function checkRotations(f: RotationsFile, events: EventsFile, locations: 
     if (!r.sources.length) p.add(w, 'needs a source');
     r.sources.forEach((s, i) => checkSource(p, `${w} source ${i}`, s));
   }
+  const base = new Set(locations.regions.filter((r) => r.release === 'base').map((r) => r.id));
+  const expansion = new Set(locations.regions.filter((r) => r.release !== 'base').map((r) => r.id));
+  const position = (pin: RotationPinRecord, n: number, where: string) => {
+    if (!isInstant(pin.start)) p.add(where, 'start must be an ISO UTC instant');
+    if (!Number.isInteger(pin.position) || pin.position < 0 || pin.position >= n) p.add(where, `position must be 0 to ${n - 1}`);
+  };
   const wb = f.worldBoss;
   if (wb) {
     const w = 'worldBoss rotation';
-    const base = new Set(locations.regions.filter((r) => r.release === 'base').map((r) => r.id));
-    const expansion = new Set(locations.regions.filter((r) => r.release !== 'base').map((r) => r.id));
-    const position = (pin: RotationPinRecord, n: number, where: string) => {
-      if (!isInstant(pin.start)) p.add(where, 'start must be an ISO UTC instant');
-      if (!Number.isInteger(pin.position) || pin.position < 0 || pin.position >= n) p.add(where, `position must be 0 to ${n - 1}`);
-    };
     if (!wb.cycle.length || wb.cycle.length > 64) p.add(w, 'cycle must have 1 to 64 steps');
     wb.cycle.forEach((s, i) => {
       if (!bosses.has(s.boss)) p.add(`${w} step ${i}`, `unknown boss ${s.boss}`);
-      if (!base.has(s.region)) p.add(`${w} step ${i}`, `${s.region} is not a base-game region (the main spawn is in one)`);
+      if (s.region !== undefined && !base.has(s.region)) p.add(`${w} step ${i}`, `${s.region} is not a base-game region (the main spawn is in one)`);
     });
     position(wb.pin, wb.cycle.length, `${w} pin`);
     if (!Number.isInteger(wb.holdDays) || wb.holdDays < 1 || wb.holdDays > 28) p.add(w, 'holdDays must be 1 to 28');
@@ -452,6 +485,44 @@ export function checkRotations(f: RotationsFile, events: EventsFile, locations: 
     if (!wb.basis) p.add(w, 'needs a basis');
     if (!wb.sources.length) p.add(w, 'needs a source');
     wb.sources.forEach((s, i) => checkSource(p, `${w} source ${i}`, s));
+  }
+  const ht = f.helltide;
+  if (ht) {
+    const w = 'helltide rotation';
+    const cycle = (c: HelltideCycleRecord, allowed: Set<string>, kind: string) => {
+      const where = `${w} ${kind}`;
+      if (!c.cycle.length || c.cycle.length > 64) p.add(where, 'cycle must have 1 to 64 steps');
+      if (!c.cycle.some((v) => v !== null)) p.add(where, 'cycle needs at least one region');
+      c.cycle.forEach((v, i) => {
+        if (v === null ? kind === 'base' : !allowed.has(v)) p.add(`${where} step ${i}`, kind === 'base' ? `${v} is not a base-game region (a base-game Helltide runs every hour)` : `${v} is not an expansion region`);
+      });
+      position(c.pin, c.cycle.length, `${where} pin`);
+    };
+    cycle(ht.base, base, 'base');
+    if (ht.expansion) cycle(ht.expansion, expansion, 'expansion');
+    if (!ht.basis) p.add(w, 'needs a basis');
+    if (!ht.sources.length) p.add(w, 'needs a source');
+    ht.sources.forEach((s, i) => checkSource(p, `${w} source ${i}`, s));
+  }
+  const lg = f.legion;
+  if (lg) {
+    const w = 'legion rotation';
+    const sites = new Set(locations.legionSites.map((s) => s.name));
+    const used = new Set<string>();
+    for (const [id, list] of Object.entries(lg.groups)) {
+      if (!list.length) p.add(`${w} group ${id}`, 'needs at least one site');
+      for (const s of list) {
+        if (!sites.has(s)) p.add(`${w} group ${id}`, `unknown site ${s} (name it as in locations.json legionSites)`);
+        if (used.has(s)) p.add(`${w} group ${id}`, `${s} is in two groups`);
+        used.add(s);
+      }
+    }
+    if (!lg.cycle.length || lg.cycle.length > 64) p.add(w, 'cycle must have 1 to 64 steps');
+    lg.cycle.forEach((id, i) => { if (!lg.groups[id]) p.add(`${w} step ${i}`, `unknown group ${id}`); });
+    position(lg.pin, lg.cycle.length, `${w} pin`);
+    if (!lg.basis) p.add(w, 'needs a basis');
+    if (!lg.sources.length) p.add(w, 'needs a source');
+    lg.sources.forEach((s, i) => checkSource(p, `${w} source ${i}`, s));
   }
   for (const x of f.resets) {
     if (!isInstant(x.at)) p.add(`reset ${x.label}`, 'at must be an ISO UTC instant');
