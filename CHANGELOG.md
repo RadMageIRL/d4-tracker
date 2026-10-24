@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.4.0 (unreleased)
+## v0.4.0 (2026-10-24)
 
 - What you log shows on the cards: the boss and arena you logged for a World Boss spawn, the
   region you marked for the Helltide in progress, the site of a Legion. Each says whether you saw
@@ -54,7 +54,7 @@
 - A start time's confirmation counts distinct spawns, dated by the spawn: two records of one spawn
   (a double spawn, or the same one logged twice) count once.
 
-## v0.3.0 (unreleased)
+## v0.3.0 (2026-10-24)
 
 - Sanctuary Atlas replaces the schematic map: a stylized overview of the seven regions and an
   original illustration for each one (Fractured Peaks, Scosglen, Dry Steppes, Kehjistan, Hawezar,
