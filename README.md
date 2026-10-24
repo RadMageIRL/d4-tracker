@@ -5,7 +5,7 @@ monitor. It is one static page: no account, no backend, no ads, no tracking, and
 requests to any other site (its Content-Security-Policy blocks them). Every timer is calculated in
 your browser from rules kept in this repository; it does not depend on any other tracker.
 
-Live at https://radmagelabs.com/d4/ (planned).
+Live at https://radmagelabs.com/d4/
 
 ![Diablo IV Tracker at 3:00 PM UTC: a Helltide just began with 55:00 left and its card glows, the World Boss spawns in 3 hours, the next Legion is in 20 minutes, with confidence badges, the schematic Sanctuary map, the sightings log, the coming-up timeline and the Season 15 panel](screenshots/dashboard.png)
 
@@ -164,6 +164,10 @@ on their announced Pacific day, and no data file may link to a competing tracker
 https://radmagelabs.com/d4/. `.github/workflows/pages.yml`
 builds, tests and deploys it to GitHub Pages when run by hand from the Actions tab (it does not run
 on push); the repository's Pages source must be set to "GitHub Actions".
+
+GitHub Pages serves it at https://radmageirl.github.io/d4-tracker/, and https://radmagelabs.com/d4/
+serves the same file through the RadMage Labs site. Browsers keep settings and sightings per
+address, so each address has its own.
 
 ## Dependencies and licenses
 
