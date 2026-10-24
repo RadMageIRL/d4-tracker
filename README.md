@@ -74,8 +74,11 @@ Times are kept in UTC and shown in your zone, so they are right in zones with ha
 Helltide starts at :30 in India), across daylight saving changes, and when you change time zone
 while the page is open. When the page comes from a web server, it compares the computer's clock
 with that server's own clock (no time service), once at load, every six hours, and after the
-computer wakes or its clock is changed. If the computer is 2 seconds or more off, the countdowns
-are corrected and the header says so.
+computer wakes or its clock is changed. Caches in front of a web server report time differently
+(GitHub Pages' cache sends the current time with the copy's age), so each check takes two readings
+a few seconds apart and trusts only a server time that moved in step with real time. If the
+computer is a couple of seconds or more off, the countdowns are corrected and the header says so;
+if the answers are inconsistent, nothing is corrected and the settings say why.
 
 ## Reminders: what to expect
 

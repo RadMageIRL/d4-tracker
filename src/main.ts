@@ -7,7 +7,7 @@ import type { DetailsSource, ScheduleSource } from './adapters/types';
 import {
   bossNames, DETAIL_REASONS, eventDefinitions, EVENTS, knownPlaces, LOCATIONS, MAP_DATA, SEASONS, SHARED_SIGHTINGS,
 } from './data';
-import { detectResume, estimateClock, type ClockEstimate } from './engine/clock';
+import { detectResume, estimateClock, SAMPLE_GAP_MS, type ClockEstimate, type ClockSample } from './engine/clock';
 import { eventStatus, isInstant, type EventKind, type EventStatus } from './engine/events';
 import { clockTime, spanWords, zoneName } from './engine/format';
 import { merge } from './engine/observations';
@@ -32,7 +32,8 @@ const detailsSource: DetailsSource = new OfflineDetailsSource(DETAIL_REASONS);
 let prefs: Prefs = loadPrefs();
 let sightings = loadObservations();
 let clock: ClockEstimate | null = null;
-let clockChecked: 'pending' | 'done' | 'failed' = 'pending';
+let clockChecked: 'pending' | 'done' | 'unreliable' | 'failed' = 'pending';
+let clockInFlight = false;
 /** performance.now() of the last clock check: a steady clock, unaffected by the jumps it detects. */
 let lastClockCheck = -Infinity;
 
@@ -144,7 +145,8 @@ function dataLines(): string[] {
 
 function clockLine(): string {
   if (location.protocol === 'file:') return 'Clock check: needs the page to come from a web server, so opened as a file it uses this device\'s clock as it is.';
-  if (clockChecked === 'pending') return 'Clock check: running.';
+  if (clockChecked === 'pending') return 'Clock check: running (it takes a few seconds).';
+  if (clockChecked === 'unreliable') return "Clock check: the server's time could not be read reliably here (a cache in between gave inconsistent answers), so times use this device's clock as it is.";
   if (clockChecked === 'failed' || !clock) return 'Clock check: not available here, so times use this device\'s clock as it is.';
   if (clock.applied) {
     const dir = clock.measuredMs > 0 ? 'slow' : 'fast';
@@ -274,28 +276,36 @@ document.addEventListener('visibilitychange', () => {
   tick();
 });
 
+/** One same-origin HEAD request, with the device clock read around it. */
+async function sampleClock(): Promise<ClockSample> {
+  const url = new URL(location.href);
+  url.hash = '';
+  url.searchParams.set('clock', String(Date.now()));
+  const sentMs = Date.now();
+  const res = await fetch(url, { method: 'HEAD', cache: 'no-store' });
+  return { sentMs, receivedMs: Date.now(), date: res.headers.get('Date'), age: res.headers.get('Age') };
+}
+
 // Clock check against this site's own server (same origin, nothing third-party). Once at load,
-// every six hours, and after a resume; never more than once a minute.
+// every six hours, and after a resume (no sooner than minGapMs after the last one, never two at once).
 async function checkClock(minGapMs = 0): Promise<void> {
   if (!location.protocol.startsWith('http')) { clockChecked = 'failed'; return; }
-  if (performance.now() - lastClockCheck < minGapMs) return;
+  if (clockInFlight || performance.now() - lastClockCheck < minGapMs) return;
+  clockInFlight = true;
   lastClockCheck = performance.now();
   try {
-    const url = new URL(location.href);
-    url.hash = '';
-    url.searchParams.set('clock', String(Date.now()));
-    const sent = Date.now();
-    const res = await fetch(url, { method: 'HEAD', cache: 'no-store' });
-    const received = Date.now();
-    const estimate = estimateClock(sent, received, res.headers.get('Date'), res.headers.get('Age'));
-    if (estimate) {
-      clock = estimate;
-      clockChecked = 'done';
-    } else if (!clock) {
-      clockChecked = 'failed';
-    }
+    // Two readings a few seconds apart: only a header that moves with real time is trusted.
+    const first = await sampleClock();
+    await new Promise((done) => setTimeout(done, SAMPLE_GAP_MS));
+    const second = await sampleClock();
+    const estimate = estimateClock([first, second]);
+    // An unreliable answer never moves the countdowns: the device clock is used as it is.
+    clock = estimate;
+    clockChecked = estimate ? 'done' : 'unreliable';
   } catch {
     if (!clock) clockChecked = 'failed';
+  } finally {
+    clockInFlight = false;
   }
   render();
 }

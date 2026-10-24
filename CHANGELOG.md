@@ -1,6 +1,17 @@
 # Changelog
 
-## v0.2 (unreleased)
+## Unreleased
+
+- Fix: on GitHub Pages the clock check could "correct" a right clock by up to the age of the cached
+  copy (seen live: 8 and 13 seconds, growing to as much as 10 minutes), moving every countdown by
+  that much. The cache in front of Pages sends the current time in Date together with the copy's
+  Age; the check had assumed Date was the copy's original time. It now takes two readings 5 seconds
+  apart and trusts a server time only if it moved in step with real time: Date when it advances,
+  Date plus Age when only that advances. Frozen, jumping or malformed answers correct nothing.
+- The browser tests serve the page the way five kinds of server answer: no cache, a cache like
+  GitHub's, a standard cache, a stale cache without Age, and inconsistent headers.
+
+## v0.2 (2026-10-23)
 
 - Independence: every timer comes from rules kept in this repository (data/*.json); the page names
   and links no other tracker, and a test enforces it. The season panel links only Blizzard's pages.

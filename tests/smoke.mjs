@@ -28,8 +28,23 @@ const BASE = BASES[0];
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.json': 'application/json' };
 // The server's idea of "now" = real time + serverShiftMs. Each check sets it to match the page.
 let serverShiftMs = 0;
+// How a cache in front of the server answers, with a copy stored CACHE_AGE_S before the mode was set:
+//   'none'         no cache: the current Date, no Age
+//   'cdn'          the current Date plus the copy's growing Age (GitHub Pages' CDN, measured live)
+//   'standard'     the copy's original Date plus its growing Age (the standard behavior)
+//   'stale'        the copy's original Date and no Age (a misbehaving cache)
+//   'inconsistent' a Date that jumps by up to an hour on every answer, and a nonsense Age
+let cacheMode = 'none';
+let storedAt = null;
+const CACHE_AGE_S = 120;
+function setCache(mode) { cacheMode = mode; storedAt = null; }
 const server = createServer((req, res) => {
-  const date = new Date(Date.now() + serverShiftMs).toUTCString();
+  const now = Date.now() + serverShiftMs;
+  if (storedAt === null) storedAt = now - CACHE_AGE_S * 1000;
+  const ageS = String(Math.floor((now - storedAt) / 1000));
+  const dateMs = { none: now, cdn: now, standard: storedAt, stale: storedAt, inconsistent: now + Math.round((Math.random() - 0.5) * 7200000) }[cacheMode];
+  const date = new Date(dateMs).toUTCString();
+  const age = { none: {}, cdn: { Age: ageS }, standard: { Age: ageS }, stale: {}, inconsistent: { Age: String(Math.floor(Math.random() * 1e6)) } }[cacheMode];
   const url = new URL(req.url, 'http://x');
   const base = BASES.find((b) => url.pathname.startsWith(b));
   if (!base) { res.writeHead(404, { Date: date }); res.end(); return; }
@@ -38,7 +53,7 @@ const server = createServer((req, res) => {
   let file = join(root, rel);
   if (existsSync(file) && statSync(file).isDirectory()) file = join(file, 'index.html');
   if (!existsSync(file)) { res.writeHead(404, { Date: date }); res.end(); return; }
-  res.writeHead(200, { Date: date, 'Content-Type': TYPES[extname(file)] ?? 'application/octet-stream', 'Cache-Control': 'no-store' });
+  res.writeHead(200, { Date: date, ...age, 'Content-Type': TYPES[extname(file)] ?? 'application/octet-stream', 'Cache-Control': 'no-store' });
   res.end(req.method === 'HEAD' ? undefined : readFileSync(file));
 });
 await new Promise((ok) => server.listen(0, '127.0.0.1', ok));
@@ -130,13 +145,47 @@ try {
   // 3. Clock check: a server 30 s ahead of the device is detected and corrected.
   {
     const page = await open('2026-10-24T14:59:00Z', { timezone: 'UTC', serverSkewMs: 30000 });
-    await page.waitFor("document.querySelector('#clock-sub').textContent.includes('corrected')", 5000).catch(() => {});
+    await page.waitFor("document.querySelector('#clock-sub').textContent.includes('corrected')", 9000).catch(() => {});
     const sub = await page.eval(text('#clock-sub'));
     check('clock correction is shown', sub.includes('corrected'), sub);
     const big = await page.eval(card('helltide', '.big'));
     // Device says 14:59:00+, corrected time is 14:59:30+, so about 0:30 is left.
     check('countdown uses the corrected clock', /^0:(2\d|30)$/.test(big), big);
   }
+
+  // 3b. Behind a cache. A right clock is never "corrected" whichever way the cache treats Date
+  // (GitHub Pages' CDN sends the current Date with Age; v0.2.0 added the Age and shifted every
+  // countdown by it). A wrong clock is still caught behind both well-behaved kinds. Stale and
+  // inconsistent answers are refused and never move the countdowns.
+  const clockLine = async (page) => {
+    await page.waitFor("!document.getElementById('settings').open && true");
+    await sleep(6500); // a check takes two readings 5 s apart
+    await page.eval("document.getElementById('settings-open').click()");
+    const line = (await page.eval("document.getElementById('settings').textContent")).match(/Clock check:[^.]*\./)?.[0] ?? '';
+    await page.eval("document.getElementById('settings').close()");
+    return line;
+  };
+  for (const mode of ['none', 'cdn', 'standard']) {
+    setCache(mode);
+    const page = await open('2026-10-24T15:10:00Z', { timezone: 'UTC' });
+    const line = await clockLine(page);
+    check(`cache "${mode}": a right clock is left alone`, line.includes('agrees with the server'), line);
+  }
+  for (const [mode, skew] of [['cdn', 30000], ['standard', -30000]]) {
+    setCache(mode);
+    const page = await open('2026-10-24T15:10:00Z', { timezone: 'UTC', serverSkewMs: skew });
+    const line = await clockLine(page);
+    // Date + Age has two seconds of resolution, so the smallest fitting correction can be 28 s.
+    check(`cache "${mode}": a clock 30 s ${skew > 0 ? 'slow' : 'fast'} is still corrected`, /about (2[89]|3[0-2]) s/.test(line), line);
+  }
+  for (const [mode, skew] of [['stale', 0], ['stale', 45000], ['inconsistent', 0]]) {
+    setCache(mode);
+    const page = await open('2026-10-24T15:10:00Z', { timezone: 'UTC', serverSkewMs: skew });
+    const line = await clockLine(page);
+    const sub = await page.eval(text('#clock-sub'));
+    check(`cache "${mode}"${skew ? ' with the clock 45 s off' : ''}: refused, no correction`, line.includes('could not be read reliably') && !sub.includes('corrected'), `${line} | ${sub}`);
+  }
+  setCache('none');
 
   // 4. Reminders: a 5-minute Legion reminder fires as a toast and a system notification.
   {
@@ -215,7 +264,7 @@ try {
     const page = await open('2026-10-24T15:10:00Z', { timezone: 'UTC', prefs: { reminders: { legion: [5] } } });
     const clockRequests = () => page.requests.filter((u) => u.includes('clock=')).length;
     await page.waitFor("document.querySelector('#clock-sub').textContent.includes('UTC')");
-    await sleep(5600); // past the minimum gap between clock checks, as a real sleep would be
+    await sleep(7000); // past the first check (two readings 5 s apart) and the gap between checks
     const before = clockRequests();
     serverShiftMs += 2 * 3600000;
     await page.eval(`(() => { const prev = Date.now; Date.now = () => prev() + ${2 * 3600000}; })()`);
@@ -229,9 +278,9 @@ try {
   // 5e. The system clock jumps 30 s (a time sync) while the server stays put: detected and corrected.
   {
     const page = await open('2026-10-24T15:10:00Z', { timezone: 'UTC' });
-    await sleep(5600);
+    await sleep(7000); // past the first check (two readings 5 s apart) and the gap between checks
     await page.eval(`(() => { const prev = Date.now; Date.now = () => prev() + 30000; })()`);
-    await page.waitFor("document.querySelector('#clock-sub').textContent.includes('corrected')", 5000).catch(() => {});
+    await page.waitFor("document.querySelector('#clock-sub').textContent.includes('corrected')", 9000).catch(() => {});
     check('a clock jump is detected and corrected', (await page.eval(text('#clock-sub'))).includes('corrected'));
     const big = await page.eval(card('legion', '.big'));
     check('countdown follows the server, not the jumped clock', /^9:[45]\d$/.test(big), big);
