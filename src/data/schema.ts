@@ -77,6 +77,13 @@ export interface RosterEntry {
   sources?: Source[];
 }
 
+/** Every nth start brings a second one at the same time (the World Boss in an expansion region). */
+export interface ExtraSpawnRecord extends Claim {
+  every: number;
+  /** ISO UTC start of one start that has the extra one. */
+  anchor: string;
+}
+
 export interface EventRecord {
   id: 'helltide' | 'worldBoss' | 'legion';
   name: string;
@@ -85,6 +92,7 @@ export interface EventRecord {
   announcedChanges: AnnouncedChange[];
   roster?: RosterEntry[];
   rotations: RotationClaim[];
+  extraSpawn?: ExtraSpawnRecord;
 }
 
 export interface EventsFile {
@@ -138,15 +146,73 @@ export interface SiteRecord {
   sources: string[];
 }
 
+/** A kind of Helltide chest, as the game names it. */
+export interface ChestTypeRecord {
+  id: string;
+  name: string;
+  confidence: Confidence;
+  /** Minutes after a Helltide begins at which these chests move to other spots (empty: they stay). */
+  relocatesAtMinutes: number[];
+  note?: string;
+  sources: string[];
+}
+
+/** A spot where a Helltide chest can appear, from our own observations (never from another site). */
+export interface ChestSiteRecord extends SiteRecord {
+  id: string;
+  /** A chestTypes id. */
+  type: string;
+  /** The day the spot was last seen or checked in game. */
+  checkedOn: string;
+  /** Only when placed on our own atlas drawing by someone who saw it: fractions of the drawing. */
+  position?: { art: string; x: number; y: number };
+  /** The season or patch the spot was seen in, since spots can change. */
+  appliesFrom?: string;
+}
+
 export interface LocationsFile {
   checkedOn: string;
   regions: RegionRecord[];
   helltideRegions: { regions: string[]; confidence: Confidence; note: string; sources: string[] };
   worldBossArenas: SiteRecord[];
   legionSites: SiteRecord[];
+  chestTypes: ChestTypeRecord[];
   /** Places a Helltide chest was seen, from our own observations. Empty until we have some. */
-  helltideChests: SiteRecord[];
+  helltideChests: ChestSiteRecord[];
   sources: Record<string, Source>;
+}
+
+/**
+ * An order someone described (a guide, a forum post, Blizzard), registered so that our own
+ * sightings can test it. Registering one claims nothing: the page shows a prediction only after
+ * sightings made after registeredOn bear it out (src/engine/prediction.ts), and only Blizzard's
+ * own words make it Confirmed.
+ */
+export interface RuleRecord {
+  id: string;
+  event: 'worldBoss' | 'legion' | 'helltide';
+  field: 'boss' | 'place' | 'region' | 'pair';
+  /** In order. Bosses and arenas by name as in the data, regions by id, pairs as "Boss @ Arena". */
+  sequence: string[];
+  /** ISO UTC start of an occurrence that showed sequence[0], or null to read the phase from sightings. */
+  anchor: string | null;
+  registeredOn: string;
+  /** A few words on where the rule came from. */
+  basis: string;
+  sources: Source[];
+}
+
+/** A moment an order may have reset (a patch, a maintenance): analysis starts again after it. */
+export interface ResetRecord {
+  at: string;
+  label: string;
+  sources: Source[];
+}
+
+export interface RotationsFile {
+  checkedOn: string;
+  rules: RuleRecord[];
+  resets: ResetRecord[];
 }
 
 // Checks
@@ -228,6 +294,17 @@ export function checkEvents(f: EventsFile): string[] {
       if (!c.sources.length) p.add(`${e.id} change ${i}`, 'needs a source');
       c.sources.forEach((s, j) => checkSource(p, `${e.id} change ${i} source ${j}`, s));
     });
+    const x = e.extraSpawn;
+    if (x) {
+      const w = `${e.id} extraSpawn`;
+      if (!(Number.isInteger(x.every) && x.every >= 2)) p.add(w, 'every must be a whole number of 2 or more');
+      if (!isInstant(x.anchor)) p.add(w, 'anchor must be an ISO UTC instant');
+      else {
+        const s = e.schedules.find((y) => (y.from === null || Date.parse(y.from) <= Date.parse(x.anchor)) && (y.until === null || Date.parse(x.anchor) < Date.parse(y.until)));
+        if (!s || (Date.parse(x.anchor) - Date.parse(s.anchor)) % (s.periodMinutes * 60000) !== 0) p.add(w, 'anchor must be one of the calculated starts');
+      }
+      checkClaim(p, w, x);
+    }
     for (const r of e.roster ?? []) {
       if (!CONFIDENCES.includes(r.confidence)) p.add(`${e.id} roster ${r.name}`, 'bad confidence');
       if (r.confidence === 'confirmed' && !r.sources?.some((s) => s.kind === 'blizzard' || s.kind === 'observation')) {
@@ -251,6 +328,36 @@ export function checkLocations(f: LocationsFile): string[] {
     if (r.confidence === 'confirmed' && !confirmedOk(r.sources)) p.add(r.id, 'confirmed needs a Blizzard source or our own observation');
   }
   for (const id of f.helltideRegions.regions) if (!regionIds.has(id)) p.add('helltideRegions', `unknown region ${id}`);
+  const typeIds = new Set<string>();
+  for (const c of f.chestTypes) {
+    const w = `chestType ${c.id}`;
+    if (!/^[a-z][a-z-]{0,30}$/.test(c.id) || typeIds.has(c.id)) p.add(w, 'id must be unique, lowercase letters and hyphens');
+    typeIds.add(c.id);
+    if (!c.name) p.add(w, 'needs a name');
+    if (!CONFIDENCES.includes(c.confidence)) p.add(w, 'bad confidence');
+    const m = c.relocatesAtMinutes;
+    if (!Array.isArray(m) || !m.every((x, i) => Number.isInteger(x) && x >= 1 && x <= 59 && (i === 0 || x > m[i - 1]!))) {
+      p.add(w, 'relocatesAtMinutes must be whole minutes from 1 to 59, in increasing order');
+    }
+    for (const id of c.sources) if (!sourceIds.has(id)) p.add(w, `unknown source ${id}`);
+    if (c.confidence !== 'unknown' && !c.sources.length) p.add(w, 'needs a source');
+    if (c.confidence === 'confirmed' && !confirmedOk(c.sources)) p.add(w, 'confirmed needs a Blizzard source or our own observation');
+  }
+  const chestIds = new Set<string>();
+  for (const c of f.helltideChests) {
+    const w = `helltideChests ${c.name}`;
+    if (!/^[a-z0-9-]+$/.test(c.id) || chestIds.has(c.id)) p.add(w, 'id must be unique, lowercase letters, digits and hyphens');
+    chestIds.add(c.id);
+    if (!typeIds.has(c.type)) p.add(w, `unknown chest type ${c.type}`);
+    if (!DAY.test(c.checkedOn)) p.add(w, 'checkedOn must be YYYY-MM-DD');
+    const pos = c.position;
+    if (pos && !(/^[a-z_]+:[0-9a-f]{8}$/.test(pos.art) && [pos.x, pos.y].every((v) => typeof v === 'number' && v >= 0 && v <= 1))) {
+      p.add(w, 'position must name a drawing (region:hash) and fractions from 0 to 1');
+    }
+    if (c.confidence === 'confirmed' && !c.sources.some((id) => f.sources[id]?.kind === 'observation')) {
+      p.add(w, 'a chest spot is confirmed only by our own in-game observation');
+    }
+  }
   const lists: [string, SiteRecord[]][] = [['worldBossArenas', f.worldBossArenas], ['legionSites', f.legionSites], ['helltideChests', f.helltideChests]];
   for (const [name, list] of lists) {
     for (const s of list) {
@@ -261,6 +368,45 @@ export function checkLocations(f: LocationsFile): string[] {
       if (s.confidence !== 'unknown' && !s.sources.length) p.add(w, 'needs a source');
       if (s.confidence === 'confirmed' && !confirmedOk(s.sources)) p.add(w, 'confirmed needs a Blizzard source or our own observation');
     }
+  }
+  return p.list;
+}
+
+export function checkRotations(f: RotationsFile, events: EventsFile, locations: LocationsFile): string[] {
+  const p = new Problems();
+  if (!DAY.test(f.checkedOn)) p.add('rotations', 'checkedOn must be YYYY-MM-DD');
+  const bosses = new Set(events.events.find((e) => e.id === 'worldBoss')?.roster?.map((r) => r.name) ?? []);
+  const arenas = new Set(locations.worldBossArenas.map((a) => a.name));
+  const regions = new Set(locations.regions.map((r) => r.id));
+  const valid: Record<string, (v: string) => boolean> = {
+    'worldBoss boss': (v) => bosses.has(v),
+    'worldBoss place': (v) => arenas.has(v),
+    'worldBoss pair': (v) => { const [b, a] = v.split(' @ '); return !!b && !!a && bosses.has(b) && arenas.has(a); },
+    'worldBoss region': (v) => regions.has(v),
+    'legion place': (v) => v.trim().length > 0,
+    'legion region': (v) => regions.has(v),
+    'helltide region': (v) => regions.has(v),
+  };
+  const ids = new Set<string>();
+  for (const r of f.rules) {
+    const w = `rule ${r.id}`;
+    if (!/^[a-z0-9-]+$/.test(r.id) || ids.has(r.id)) p.add(w, 'id must be unique, lowercase letters, digits and hyphens');
+    ids.add(r.id);
+    const ok = valid[`${r.event} ${r.field}`];
+    if (!ok) p.add(w, `${r.field} is not a field of ${r.event}`);
+    if (!r.sequence.length || r.sequence.length > 64) p.add(w, 'sequence must have 1 to 64 values');
+    for (const v of r.sequence) if (ok && !ok(v)) p.add(w, `unknown value ${v} (bosses and arenas by their name in the data, regions by id)`);
+    if (r.anchor !== null && !isInstant(r.anchor)) p.add(w, 'anchor must be null or an ISO UTC instant');
+    if (!DAY.test(r.registeredOn)) p.add(w, 'registeredOn must be YYYY-MM-DD');
+    if (!r.basis) p.add(w, 'needs a basis');
+    if (!r.sources.length) p.add(w, 'needs a source');
+    r.sources.forEach((s, i) => checkSource(p, `${w} source ${i}`, s));
+  }
+  for (const x of f.resets) {
+    if (!isInstant(x.at)) p.add(`reset ${x.label}`, 'at must be an ISO UTC instant');
+    if (!x.label) p.add('reset', 'needs a label');
+    if (!x.sources.length) p.add(`reset ${x.label}`, 'needs a source');
+    x.sources.forEach((s, i) => checkSource(p, `reset ${x.label} source ${i}`, s));
   }
   return p.list;
 }

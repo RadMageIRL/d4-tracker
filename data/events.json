@@ -40,7 +40,7 @@
         "location": {
           "confidence": "unknown",
           "hint": "shown in game when it begins",
-          "reason": "No public source forecasts it. The in-game map shows the region once it begins."
+          "reason": "No source documents or claims an order, and Blizzard notes show a Helltide can return to the region it was just in. The in-game map shows the region once it begins. Since Vessel of Hatred a second Helltide can run in an expansion region at the same time. Mark it on this card and it shows until the Helltide ends."
         }
       },
       "announcedChanges": [
@@ -92,7 +92,8 @@
             "sources": [
               {
                 "kind": "community",
-                "title": "Community trackers and open-source projects, read once for research on 2026-10-23 (see docs/RESEARCH.md); not used at runtime"
+                "title": "Community trackers and open-source projects agree on these times (checked 2026-10-23); not used at runtime. How start times are checked",
+                "url": "https://github.com/RadMageIRL/d4-tracker#how-sure-each-piece-is"
               }
             ]
           }
@@ -102,30 +103,36 @@
         "identity": {
           "confidence": "unknown",
           "hint": "named in game before it spawns",
-          "reason": "Not reliably predictable: the trackers that guess disagree. The in-game map names it before the spawn."
+          "reason": "No rule predicts it: the 8-spawn order other trackers use is contradicted by first-hand reports within a single patch. The in-game map names it about an hour before the spawn; log it and this card shows it for that spawn."
         },
         "location": {
           "confidence": "unknown",
-          "hint": "one of 7 arenas (see map)",
-          "reason": "One of seven arenas, one per region (see the map). The in-game map shows which before the spawn."
+          "hint": "shown in game before it spawns",
+          "reason": "One of the arenas, one per region (listed in each region's details on the radar). Nobody claims an arena order, and every boss has been reported in several. The in-game map shows which about an hour before the spawn; log it and the card and the radar show it."
         }
       },
       "announcedChanges": [],
       "roster": [
         {
           "name": "Ashava",
-          "confidence": "inferred",
-          "note": "A world boss since launch; listed by every community tracker in 2026. No current Blizzard roster page."
+          "confidence": "confirmed",
+          "note": "Seen in game as the World Boss on 2026-10-24.",
+          "sources": [
+            {
+              "kind": "observation",
+              "title": "Our in-game sighting of Ashava as the World Boss, 2026-10-24"
+            }
+          ]
         },
         {
           "name": "Avarice",
           "confidence": "inferred",
-          "note": "As for Ashava."
+          "note": "A world boss since launch; listed by every community tracker in 2026. No current Blizzard roster page."
         },
         {
           "name": "Wandering Death",
           "confidence": "inferred",
-          "note": "As for Ashava."
+          "note": "A world boss since launch; listed by every community tracker in 2026. No current Blizzard roster page."
         },
         {
           "name": "Azmodan",
@@ -144,14 +151,46 @@
         {
           "field": "boss",
           "confidence": "unknown",
-          "note": "Blizzard documents no boss order. Community trackers model one but disagree with each other. Our sightings can test for one; a fit would be Inferred at most."
+          "note": "Blizzard documents no boss order. Community trackers model an 8-spawn order, but first-hand reports contradict it within one patch: the same spawn time a week apart brought different bosses (2026-09-17 and 09-24). Our sightings can test for an order; a fit would be Inferred at most."
         },
         {
           "field": "place",
           "confidence": "unknown",
-          "note": "Blizzard documents no arena order. Our sightings can test for one; a fit would be Inferred at most."
+          "note": "Blizzard documents no arena order and no guide claims one; every boss has been reported in several arenas. Our sightings can test for one; a fit would be Inferred at most."
         }
-      ]
+      ],
+      "extraSpawn": {
+        "every": 4,
+        "anchor": "2026-10-24T11:00:00Z",
+        "confidence": "inferred",
+        "note": "Every fourth spawn brings a second World Boss in an expansion region (Nahantu, and perhaps Skovos) as well as the usual one. Not documented by Blizzard: every dated first-hand report of two at once, from October 2024 to September 2026, falls on these spawns (every 14 hours). Which bosses they are is not predictable.",
+        "sources": [
+          {
+            "kind": "community",
+            "title": "Blizzard forums, first-hand report (2024-10-29): Ashava at Caen Adar and The Cauldron at the same spawn",
+            "url": "https://us.forums.blizzard.com/en/d4/t/203524",
+            "quote": "Ashava is spawning in Caen Adar and also in The Cauldron."
+          },
+          {
+            "kind": "community",
+            "title": "Blizzard forums, first-hand report (2024-10-21): one World Boss in Hawezar, another in Nahantu",
+            "url": "https://us.forums.blizzard.com/en/d4/t/201086",
+            "quote": "I have one world boss in Hawezar that will get me whispers, and the other in Nahantu"
+          },
+          {
+            "kind": "community",
+            "title": "Blizzard forums, first-hand report (2024-10-20)",
+            "url": "https://us.forums.blizzard.com/en/d4/t/200384",
+            "quote": "world bosses always spawn in the base game, and every now and then, also in nahantu."
+          },
+          {
+            "kind": "community",
+            "title": "Blizzard forums, first-hand report (2026-09-18): Wandering Death in Nahantu and a second World Boss at the same spawn",
+            "url": "https://us.forums.blizzard.com/en/d4/t/268021/72",
+            "quote": "I think it was two World Boss spawns, the other one was in Desert or Steppes."
+          }
+        ]
+      }
     },
     {
       "id": "legion",
@@ -180,7 +219,8 @@
             "sources": [
               {
                 "kind": "community",
-                "title": "Community trackers and open-source projects, read once for research on 2026-10-23 (see docs/RESEARCH.md); not used at runtime"
+                "title": "Community trackers and open-source projects agree on these times (checked 2026-10-23); not used at runtime. How start times are checked",
+                "url": "https://github.com/RadMageIRL/d4-tracker#how-sure-each-piece-is"
               }
             ]
           }
@@ -190,7 +230,7 @@
         "location": {
           "confidence": "unknown",
           "hint": "marked in game shortly before",
-          "reason": "No public source forecasts it. The in-game map marks it shortly before it starts."
+          "reason": "No source documents or claims an order. The in-game map marks it shortly before it starts."
         }
       },
       "announcedChanges": [],

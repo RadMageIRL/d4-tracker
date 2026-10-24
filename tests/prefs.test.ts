@@ -58,6 +58,17 @@ describe('sanitize', () => {
   it('treats garbage as defaults', () => {
     for (const raw of [null, undefined, 3, 'x', [], true]) expect(sanitize(raw)).toEqual(defaultPrefs());
   });
+
+  it('defaults the event radar to every event, with a 30-minute World Boss and 10-minute Legion lead-up', () => {
+    expect(defaultPrefs().radar).toEqual({ helltide: true, worldBoss: true, legion: true });
+    expect(defaultPrefs().radarLead).toEqual({ worldBoss: 30, legion: 10 });
+  });
+
+  it('keeps a saved lead-up only when it is one of the offered choices', () => {
+    expect(sanitize({ radarLead: { worldBoss: 60, legion: 5 } }).radarLead).toEqual({ worldBoss: 60, legion: 5 });
+    expect(sanitize({ radarLead: { worldBoss: 45, legion: 'x' } }).radarLead).toEqual({ worldBoss: 30, legion: 10 });
+    expect(sanitize({ radar: { legion: false, helltide: 'no' } }).radar).toEqual({ helltide: true, worldBoss: true, legion: false });
+  });
 });
 
 describe('storage key', () => {

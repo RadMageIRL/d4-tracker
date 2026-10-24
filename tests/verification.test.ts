@@ -52,6 +52,22 @@ describe('confirming an anchor from our sightings', () => {
     expect(anchorProgress(e)).toMatch(/disagrees/);
   });
 
+  it('counts two records of one spawn (a double spawn, or the same one logged twice) as one start', () => {
+    const list = [start(wbSpawn(0)), { ...start(wbSpawn(0)), id: 'second-boss' }, start(wbSpawn(1)), start(wbSpawn(7))];
+    const e = anchorEvidence(list, segs('worldBoss'), 'worldBoss');
+    expect(e.matching).toBe(3);
+    expect(anchorEvidence(list.slice(0, 2), segs('worldBoss'), 'worldBoss').matching).toBe(1);
+  });
+
+  it('dates a match by the calculated start it matched, not by when it was typed', () => {
+    // Spawn 40 is at 00:00 UTC on 2026-10-30. Typed one minute early, at 23:59 on the 29th, it
+    // still matched the spawn on the 30th.
+    const midnight = wbSpawn(40);
+    expect(midnight.toISOString()).toBe('2026-10-30T00:00:00.000Z');
+    const e = anchorEvidence([start(midnight, 'worldBoss', -60000)], segs('worldBoss'), 'worldBoss');
+    expect(e.days).toEqual(['2026-10-30']);
+  });
+
   it('counts only start-time sightings of the same event', () => {
     const list = [
       { ...start(wbSpawn(0)), timing: 'during' as const },
@@ -75,9 +91,20 @@ describe('the data refuses to over-claim', () => {
     return f;
   };
 
-  it('today: no shared sightings, nothing claimed from them, nothing disagreeing', () => {
-    expect(SHARED_SIGHTINGS).toEqual([]);
+  it('the shared sightings agree with the schedule, and are too few to confirm a start time', () => {
     expect(crossCheck(EVENTS, SHARED_SIGHTINGS)).toEqual([]);
+    for (const kind of ['worldBoss', 'legion'] as const) {
+      expect(anchorEvidence(SHARED_SIGHTINGS, segs(kind), kind).qualifies).toBe(false);
+    }
+  });
+
+  it('a shared record that came from a third party counts only once checked in game', () => {
+    for (const o of SHARED_SIGHTINGS.filter((x) => x.thirdParty)) {
+      // Either checked in game (seen, evidence) or explicitly not (reported, never evidence).
+      expect(o.provenance === undefined || o.provenance === 'reported').toBe(true);
+    }
+    const reported = SHARED_SIGHTINGS.filter((x) => x.provenance === 'reported');
+    expect(anchorEvidence(reported, segs('worldBoss'), 'worldBoss').matching).toBe(0);
   });
 
   it('rejects an anchor confirmed by sightings when there are too few', () => {

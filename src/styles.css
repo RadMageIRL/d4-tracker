@@ -519,3 +519,94 @@ footer a { color: var(--text-dim); }
 @media (prefers-reduced-motion: no-preference) {
   .progress > span { transition: width 0.9s linear; }
 }
+
+/* v0.4: event intelligence and Helltide chests */
+
+:root { --chest: #e08a3a; }
+:root[data-theme="light"] { --chest: #a2550f; }
+
+.check { display: flex; gap: 6px; align-items: center; margin-top: 10px; font-size: 14px; }
+.btn.small { padding: 3px 8px; font-size: 12px; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* A value on a card says whether it was seen, reported or predicted. */
+.facts dd.basis-predicted > span:first-child { font-style: italic; }
+.facts dd.basis-reported > span:first-child { color: var(--text-dim); }
+.order-note p { margin: 0; }
+
+.conf-filter { margin-top: -4px; }
+.conf-filter > .note { align-self: center; font-size: 12px; color: var(--text-faint); margin-right: 2px; }
+
+/* The event radar. A lit region: a tinted fill and an outline that breathes; an Inferred light is
+   dashed. A spawn: a dot whose ring pulses only when the event needs attention. Only opacity and
+   transform are animated, so nothing reflows the countdowns. */
+.radar-note { color: var(--text-dim); font-size: 13px; margin: 0 0 10px; }
+.radar-chips { margin-bottom: 10px; }
+.atlas-region.radar-helltide path {
+  fill: color-mix(in srgb, var(--helltide) 20%, var(--surface-2));
+  stroke: var(--helltide); stroke-width: 3.5; stroke-dasharray: none;
+  animation: radar-breathe 2.6s ease-in-out infinite;
+}
+.atlas-region.radar-helltide.inferred path { stroke-dasharray: 8 5; }
+@keyframes radar-breathe { 0%, 100% { stroke-opacity: 0.45; } 50% { stroke-opacity: 1; } }
+.radar-text { font: 600 12.5px var(--sans); fill: var(--text); pointer-events: none; paint-order: stroke; stroke: var(--bg); stroke-width: 3px; }
+.radar-text.helltide { fill: var(--helltide); }
+.radar-dot { cursor: pointer; }
+.radar-dot .core { stroke: var(--bg); stroke-width: 1.5; }
+.radar-dot .ring { fill: none; stroke-width: 2; opacity: 0; transform-box: fill-box; transform-origin: center; }
+.radar-dot.boss .core { fill: var(--boss); } .radar-dot.boss .ring { stroke: var(--boss); } .radar-dot.boss .radar-text { fill: var(--boss); }
+.radar-dot.legion .core { fill: var(--legion); } .radar-dot.legion .ring { stroke: var(--legion); } .radar-dot.legion .radar-text { fill: var(--legion); }
+.radar-dot.inferred .core { fill: var(--surface); stroke-width: 2.5; }
+.radar-dot.boss.inferred .core { stroke: var(--boss); } .radar-dot.legion.inferred .core { stroke: var(--legion); }
+.radar-dot.pulse .ring { animation: radar-pulse 2.4s ease-out infinite; }
+@keyframes radar-pulse { 0% { transform: scale(0.8); opacity: 0.9; } 100% { transform: scale(2.6); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .atlas-region.radar-helltide path, .radar-dot.pulse .ring { animation: none; }
+  .radar-dot.pulse .ring { opacity: 0.6; transform: scale(1.6); }
+}
+.radar-legend { list-style: none; padding: 0; margin: 0 0 6px; display: grid; gap: 4px; font-size: 13px; }
+.radar-legend .key { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; vertical-align: -1px; }
+.radar-legend .helltide .key { border-radius: 3px; border: 2px solid var(--helltide); background: color-mix(in srgb, var(--helltide) 30%, transparent); }
+.radar-legend .boss .key { background: var(--boss); }
+.radar-legend .legion .key { background: var(--legion); }
+.radar-events { padding-left: 18px; margin: 4px 0 8px; font-size: 13px; }
+.radar-events .helltide { color: var(--helltide); } .radar-events .worldBoss { color: var(--boss); } .radar-events .legion { color: var(--legion); }
+.radar-more { margin-top: 10px; }
+/* The phone summary under the radar: the same lights written out, one line per event type. Only
+   on narrow screens, where the labels inside the drawing are too small to read. */
+.radar-summary { display: none; }
+@media (max-width: 640px) {
+  .radar-summary { display: grid; gap: 4px; list-style: none; padding: 0; margin: 8px 0 0; font-size: 14px; }
+  .radar-summary li { padding-left: 16px; position: relative; }
+  .radar-summary li::before { content: ""; position: absolute; left: 0; top: 0.45em; width: 9px; height: 9px; border-radius: 50%; }
+  .radar-summary .helltide { color: var(--helltide); } .radar-summary .helltide::before { border-radius: 2px; background: var(--helltide); }
+  .radar-summary .worldBoss { color: var(--boss); } .radar-summary .worldBoss::before { background: var(--boss); }
+  .radar-summary .legion { color: var(--legion); } .radar-summary .legion::before { background: var(--legion); }
+}
+.radar-more summary { cursor: pointer; color: var(--text-dim); font-size: 13px; }
+
+.regional-art.placing { cursor: crosshair; outline: 2px dashed var(--chest); outline-offset: 2px; }
+.place-hint { margin: 0 0 6px; }
+.pin {
+  position: absolute; width: 14px; height: 14px; padding: 0; border-radius: 50%;
+  transform: translate(-50%, -50%); border: 2px solid var(--bg); cursor: pointer;
+  background: var(--text-dim); box-shadow: 0 0 0 1px var(--line-strong);
+}
+.pin.worldBoss { background: var(--boss); }
+.pin.legion { background: var(--legion); }
+.pin.waypoint { background: #6fa9b7; }
+.pin.chest { background: color-mix(in srgb, var(--chest) 50%, var(--surface-2)); }
+.pin.chest.active { background: var(--chest); box-shadow: 0 0 0 3px color-mix(in srgb, var(--chest) 45%, transparent); }
+.pin:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.helltide-now { color: var(--helltide); font-weight: 600; }
+.chest-section { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
+.chest-section h4 { margin: 0 0 8px; font: 600 15px var(--serif); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.chest-section h4 select { font: 13px var(--sans); background: var(--surface-2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 2px 4px; }
+.chest-list { list-style: none; padding: 0; margin: 0 0 8px; display: grid; gap: 8px; }
+.chest-list li { display: grid; grid-template-columns: 1fr auto auto; gap: 4px 6px; align-items: center; }
+.chest-list li .location-item { grid-column: 1 / -1; }
+.chest-state { font-size: 12px; color: var(--text-faint); }
+.chest-state.active { color: var(--chest); font-weight: 600; }
+.location-item.chest { border-left: 3px solid var(--chest); }
+.location-item.chest.active { background: color-mix(in srgb, var(--chest) 12%, var(--surface-2)); }

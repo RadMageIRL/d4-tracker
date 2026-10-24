@@ -1,36 +1,59 @@
 // Entry point: wires the data sources, the engine and the views, and runs the one-second tick.
 
 import './styles.css';
+import { IntelligenceDetailsSource } from './adapters/intelligence';
 import { LocalScheduleSource } from './adapters/local-schedule';
-import { OfflineDetailsSource } from './adapters/offline-details';
-import type { DetailsSource, ScheduleSource } from './adapters/types';
+import type { ScheduleSource } from './adapters/types';
 import {
-  bossNames, DETAIL_REASONS, eventDefinitions, EVENTS, knownPlaces, LOCATIONS, MAP_DATA, SEASONS, SHARED_SIGHTINGS,
+  bossNames, DETAIL_REASONS, eventDefinitions, EVENTS, knownPlaces, LOCATIONS, MAP_DATA, REGISTERED_RULES, resetBoundaries,
+  SEASONS, SHARED_SIGHTINGS,
 } from './data';
+import { chestSpots, chestState, type SharedSpot } from './engine/chests';
 import { detectResume, estimateClock, SAMPLE_GAP_MS, type ClockEstimate, type ClockSample } from './engine/clock';
-import { eventStatus, isInstant, type EventKind, type EventStatus } from './engine/events';
-import { clockTime, spanWords, zoneName } from './engine/format';
+import { eventStatus, hasExtraSpawn, isInstant, type EventKind, type EventStatus } from './engine/events';
+import { calendarDate, clockTime, spanWords, zoneName } from './engine/format';
 import { merge } from './engine/observations';
+import { radarLights, type RadarLight } from './engine/radar';
+import { activeOccurrence, lastStart, nextStart } from './engine/segments';
 import { dueReminders, type ReminderRule, type ScheduleMap } from './engine/reminders';
 import { daysSince } from './engine/seasons';
 import { tabTitle } from './engine/title';
 import { anchorEvidence, anchorProgress } from './engine/verification';
 import { loadObservations, saveObservations } from './store/observations';
 import { loadPrefs, savePrefs, type Prefs } from './store/prefs';
-import { EventCard, type ViewContext } from './ui/cards';
+import { EventCard, type OrderNote, type ViewContext } from './ui/cards';
 import { byId, h, setText } from './ui/dom';
-import { SanctuaryMap } from './ui/map';
+import { SanctuaryMap, type ChestView } from './ui/map';
 import { showSystemNotification } from './ui/notify';
 import { SeasonPanel } from './ui/season';
 import { renderSettings } from './ui/settings';
-import { SightingsPanel, timingSummary } from './ui/sightings';
+import { SightingsPanel, timingSummary, type FormPreset } from './ui/sightings';
 import { Timeline } from './ui/timeline';
 
 const scheduleSource: ScheduleSource = new LocalScheduleSource(eventDefinitions());
-const detailsSource: DetailsSource = new OfflineDetailsSource(DETAIL_REASONS);
+const SHARED_IDS = new Set(SHARED_SIGHTINGS.map((o) => o.id));
+const detailsSource = new IntelligenceDetailsSource({
+  reasons: DETAIL_REASONS,
+  sightings: () => everySighting(),
+  segments: (kind) => segmentsOf(kind),
+  registered: REGISTERED_RULES,
+  boundaries: resetBoundaries(),
+  regions: LOCATIONS.regions,
+  arenas: LOCATIONS.worldBossArenas.map((a) => ({ name: a.name, region: a.region })),
+  bosses: bossNames(),
+  sites: LOCATIONS.legionSites.map((s) => ({ name: s.name, region: s.region })),
+  isShared: (o) => SHARED_IDS.has(o.id),
+});
 
 let prefs: Prefs = loadPrefs();
 let sightings = loadObservations();
+let mergedFor: unknown = null;
+let mergedCache: ReturnType<typeof merge>['merged'] = [];
+/** Shared and local sightings together, recomputed only when the local list changes. */
+function everySighting() {
+  if (mergedFor !== sightings) { mergedCache = merge(SHARED_SIGHTINGS, sightings).merged; mergedFor = sightings; }
+  return mergedCache;
+}
 let clock: ClockEstimate | null = null;
 let clockChecked: 'pending' | 'done' | 'unreliable' | 'failed' = 'pending';
 let clockInFlight = false;
@@ -66,7 +89,8 @@ for (const def of scheduleSource.definitions(nowMs())) {
   const card = new EventCard(def.kind, def.name, {
     identity: def.kind === 'worldBoss',
     instant: isInstant(def, nowMs()),
-    onLog: () => sightingsPanel.openForm(def.kind),
+    extra: !!def.extra,
+    onLog: () => sightingsPanel.openForm(def.kind, logPreset(def.kind)),
   });
   cards.set(def.kind, card);
   cardsEl.append(card.el);
@@ -76,18 +100,78 @@ const timeline = new Timeline();
 byId('timeline-panel').append(timeline.el);
 const season = new SeasonPanel(SEASONS);
 byId('season-panel').append(season.el);
+const SHARED_CHESTS: SharedSpot[] = LOCATIONS.helltideChests.map((c) => ({
+  id: c.id, region: c.region, name: c.name, type: c.type, confidence: c.confidence, checkedOn: c.checkedOn,
+  source: c.sources.map((id) => LOCATIONS.sources[id]?.title).filter(Boolean).join('; '),
+  ...(c.position ? { position: c.position } : {}),
+}));
+const chestTypeName = (id: string) => LOCATIONS.chestTypes.find((c) => c.id === id)?.name ?? id;
+
+/** How long a spawn's marker stays after it starts, while the fight or event is under way. */
+const RADAR_GRACE_MS = { worldBoss: 10 * 60000, legion: 5 * 60000 };
+
+/** What the event radar lights now: the same sightings and trusted orders the cards use. */
+function radarNow(): RadarLight[] {
+  const now = nowMs();
+  return radarLights({
+    nowMs: now,
+    sightings: everySighting(),
+    segments: { helltide: segmentsOf('helltide'), worldBoss: segmentsOf('worldBoss'), legion: segmentsOf('legion') },
+    leadMs: { worldBoss: prefs.radarLead.worldBoss * 60000, legion: prefs.radarLead.legion * 60000 },
+    graceMs: RADAR_GRACE_MS,
+    predict: (kind, startMs) => detailsSource.radarPredictions(kind, startMs, now),
+    placeRegion: (kind, place) => detailsSource.placeRegion(kind, place),
+    series: (region) => (LOCATIONS.regions.find((r) => r.id === region)?.release === 'base' ? 'base' : 'expansion'),
+    isExtraSpawn: (o) => !detailsSource.isMainSpawn(o),
+    isShared: (o) => SHARED_IDS.has(o.id),
+  });
+}
+const realmFilter = () => (prefs.realm === 'any' ? undefined : prefs.realm);
+
+function chestViews(regionId?: string): ChestView[] {
+  const all = everySighting();
+  const now = nowMs();
+  const helltide = segmentsOf('helltide');
+  return chestSpots(SHARED_CHESTS, all)
+    .filter((c) => !regionId || c.region === regionId)
+    .map((c) => ({ ...c, state: chestState(c, all, helltide, LOCATIONS.chestTypes, now, realmFilter()) }));
+}
+
 const map = new SanctuaryMap(MAP_DATA, {
   layers: () => prefs.layers,
   setLayer: (id, on) => change((p) => { p.layers[id] = on; }),
+  confidences: () => prefs.confidences,
+  setConfidence: (id, on) => change((p) => { p.confidences[id] = on; }),
+  realm: () => prefs.realm,
+  setRealm: (r) => change((p) => { p.realm = r; }),
+  chests: chestViews,
+  radar: radarNow,
+  radarOn: () => prefs.radar,
+  setRadar: (id, on) => change((p) => { p.radar[id] = on; }),
+  leads: () => prefs.radarLead,
+  helltideActive: () => !!activeOccurrence(segmentsOf('helltide'), nowMs()),
+  markActive: (c) => {
+    sightingsPanel.quickSave({
+      event: 'helltideChest', at: new Date(nowMs()).toISOString(), timing: 'during', region: c.region, place: c.name, chest: c.type,
+      ...(realmFilter() ? { realm: realmFilter() } : {}),
+    }, `Marked active: ${c.name} (${chestTypeName(c.type)}).`);
+  },
+  addSpot: (regionId, pos) => {
+    const active = !!activeOccurrence(segmentsOf('helltide'), nowMs());
+    sightingsPanel.openForm('helltideChest', {
+      region: regionId, timing: active ? 'during' : 'none', ...(pos ? { pos } : {}),
+      intro: 'Name the spot by the Helltide zone and the nearest landmark the in-game map labels (for example "Sarkova Pass, by the cellar"), so you can find it again.',
+    });
+  },
+  placeSpot: (c, pos) => {
+    sightingsPanel.quickSave({
+      event: 'helltideChest', at: new Date(nowMs()).toISOString(), timing: 'none', region: c.region, place: c.name, chest: c.type, pos,
+    }, `Placed ${c.name} on the map.`);
+  },
+  chestTypeName,
+  ctx,
 });
 byId('map-panel').append(map.el);
-let mergedFor: unknown = null;
-let mergedCache: ReturnType<typeof merge>['merged'] = [];
-/** Shared and local sightings together, recomputed only when the local list changes. */
-function everySighting() {
-  if (mergedFor !== sightings) { mergedCache = merge(SHARED_SIGHTINGS, sightings).merged; mergedFor = sightings; }
-  return mergedCache;
-}
 
 const sightingsPanel = new SightingsPanel({
   local: () => sightings,
@@ -98,15 +182,77 @@ const sightingsPanel = new SightingsPanel({
   regions: LOCATIONS.regions,
   bosses: bossNames(),
   places: knownPlaces,
+  chestTypes: LOCATIONS.chestTypes,
+  orders: (kind) => orderNotes(kind, nowMs(), ctx().timeZone),
+  realm: () => (prefs.realm === 'any' ? undefined : prefs.realm),
+  setRealm: (r) => { if (r && r !== prefs.realm) change((p) => { p.realm = r; }); },
   ctx,
   onChange: () => render(),
 }, byId<HTMLDialogElement>('sighting-dialog'));
 byId('sightings-panel').append(sightingsPanel.el);
 byId('log-open').addEventListener('click', () => sightingsPanel.openForm());
 
-const ROTATION_FIELD = { boss: 'Boss order', place: 'Place order', region: 'Region order' } as const;
-const rotationNotes = Object.fromEntries(EVENTS.events.map((e) => [e.id,
-  e.rotations.map((r) => `${ROTATION_FIELD[r.field]} (${r.confidence}): ${r.note}`)])) as Record<EventKind, string[]>;
+/** What the sightings say about each order of one event, for the card's About section. */
+function orderNotes(kind: EventKind, now: number, timeZone: string): OrderNote[] {
+  const models = detailsSource.models(kind, now);
+  const dataNotes = EVENTS.events.find((e) => e.id === kind)?.rotations ?? [];
+  return detailsSource.specs(kind).map((spec) => {
+    const m = models[spec.key]!;
+    const dataNote = dataNotes.find((r) => r.field === spec.field)?.note;
+    const parts = [m.state === 'no-data' && dataNote ? `${dataNote} No sightings yet.` : m.explanation];
+    if (m.latestMs !== null) parts.push(`Latest sighting used: ${calendarDate(m.latestMs, timeZone)}.`);
+    if (m.reported) parts.push(`${m.reported} secondhand report${m.reported === 1 ? '' : 's'} shown but not used.`);
+    if (m.older) parts.push(`${m.older} sighting${m.older === 1 ? '' : 's'} from before the current season or schedule not used.`);
+    return { label: spec.label, confidence: m.confidence, text: parts.join(' ') };
+  });
+}
+
+/** What was seen (not predicted) at an earlier start, for the card's Last line. */
+function lastNote(st: EventStatus, now: number): string | null {
+  if (!st.previous) return null;
+  const d = detailsSource.details(st.kind, st.previous, now);
+  const parts = [d.identity, d.location].filter((f) => f?.known && f.basis !== 'predicted').map((f) => (f as { value: string }).value);
+  if (!parts.length) return null;
+  const reported = [d.identity, d.location].some((f) => f?.known && f.basis === 'reported');
+  return `${parts.join(', ')}${reported ? ' (reported)' : ' (seen)'}`;
+}
+
+/** What a card's "Log a sighting" already knows: the spawn it is about, or that a Helltide is running. */
+function logPreset(kind: EventKind): FormPreset {
+  const segs = segmentsOf(kind);
+  const now = nowMs();
+  if (kind === 'helltide') {
+    return activeOccurrence(segs, now)
+      ? { timing: 'during', atMs: now, intro: 'Which region is the Helltide in? It shows on the card and the atlas until this Helltide ends. Two can run at once (a base-game region and an expansion region): log each.' }
+      : {};
+  }
+  // The in-game map names a World Boss about an hour ahead; a Legion is marked shortly before.
+  const ahead = kind === 'worldBoss' ? 75 * 60000 : 10 * 60000;
+  const next = nextStart(segs, now);
+  const last = lastStart(segs, now);
+  const at = next && next.startMs - now <= ahead ? next.startMs : last?.startMs;
+  return at === undefined ? {} : {
+    atMs: at, timing: 'start',
+    intro: kind === 'worldBoss'
+      ? 'Log the boss and arena the game shows for this spawn; the card shows them as seen. A second boss in an expansion region (every fourth spawn) is its own sighting.'
+      : 'Log the site the game marks for this Legion.',
+  };
+}
+
+function laterNotes(st: EventStatus, now: number): (string | null)[] {
+  return st.later.map((o) => {
+    const p = detailsSource.predicted(st.kind, o.startMs, now);
+    const text = [p.identity, p.location].filter(Boolean).join(', ');
+    const notes = [hasExtraSpawn(st.definition, o.startMs) ? 'two bosses' : null, text ? `${text} (predicted)` : null].filter(Boolean);
+    return notes.length ? notes.join(' · ') : null;
+  });
+}
+
+function extraNote(st: EventStatus): { text: string; confidence: 'confirmed' | 'inferred' | 'unknown' } | null {
+  const x = st.definition.extra;
+  if (!x || !st.next || !hasExtraSpawn(st.definition, st.next.startMs)) return null;
+  return { text: 'a second World Boss in an expansion region', confidence: x.claim.confidence };
+}
 
 function applyPrefs(): void {
   const root = document.documentElement;
@@ -237,12 +383,16 @@ function render(): void {
       checkedDaysAgo: daysSince(st.definition.checkedOn, c.nowMs),
       sightings: timingSummary(allSightings, st.definition.segments, st.kind),
       anchorProgress: anchorProgress(anchorEvidence(allSightings, st.definition.segments, st.kind)),
-      rotationNotes: rotationNotes[st.kind] ?? [],
+      orders: orderNotes(st.kind, c.nowMs, c.timeZone),
+      laterNotes: laterNotes(st, c.nowMs),
+      lastNote: lastNote(st, c.nowMs),
+      extra: extraNote(st),
     });
   }
   timeline.update(shown, c);
   season.update(c);
   sightingsPanel.update();
+  map.update();
   setText(byId('clock-now'), clockTime(c.nowMs, c.timeZone, c.clock, true));
   const zone = localZone();
   const other = prefs.zone === 'utc' ? `${clockTime(c.nowMs, zone, c.clock)} ${zoneName(c.nowMs, zone)}` : `${clockTime(c.nowMs, 'UTC', c.clock)} UTC`;
@@ -314,4 +464,3 @@ applyPrefs();
 tick();
 void checkClock();
 window.setInterval(() => void checkClock(60000), 6 * 3600000);
-detailsSource.start?.(() => render());

@@ -1,7 +1,7 @@
 // "Coming up": the next starts of every shown event, merged and in order.
 
 import { clockTime, dayLabel, spanWords } from '../engine/format';
-import type { EventKind, EventStatus } from '../engine/events';
+import { hasExtraSpawn, type EventKind, type EventStatus } from '../engine/events';
 import { startsInRange } from '../engine/segments';
 import { h, setText } from './dom';
 import type { ViewContext } from './cards';
@@ -12,6 +12,8 @@ export interface TimelineItem {
   kind: EventKind;
   name: string;
   startMs: number;
+  /** This start brings a second one at the same time (every fourth World Boss). */
+  extra: boolean;
 }
 
 /** Starts of every status in (nowMs, nowMs + spanMs], soonest first, at most `limit`. */
@@ -19,7 +21,7 @@ export function timelineItems(statuses: EventStatus[], nowMs: number, spanMs: nu
   const out: TimelineItem[] = [];
   for (const st of statuses) {
     for (const o of startsInRange(st.definition.segments, nowMs + 1, nowMs + spanMs + 1)) {
-      out.push({ kind: st.kind, name: st.name, startMs: o.startMs });
+      out.push({ kind: st.kind, name: st.name, startMs: o.startMs, extra: hasExtraSpawn(st.definition, o.startMs) });
     }
   }
   out.sort((a, b) => a.startMs - b.startMs || a.kind.localeCompare(b.kind));
@@ -46,7 +48,7 @@ export class Timeline {
         const t = clockTime(i.startMs, ctx.timeZone, ctx.clock);
         return h('li', { 'data-kind': i.kind, 'data-start': i.startMs },
           h('span', { class: 'dot', 'aria-hidden': 'true' }),
-          h('span', {}, `${i.name} ${VERB[i.kind]}`),
+          h('span', {}, `${i.name} ${VERB[i.kind]}${i.extra ? ' (two)' : ''}`),
           h('span', { class: 'when' }, h('span', { class: 'at' }, day === 'Today' ? t : `${t} ${day}`), ' · ', h('span', { class: 'in' })));
       }));
     }

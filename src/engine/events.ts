@@ -19,6 +19,14 @@ export interface TimedSegment extends Segment {
   phase: Claim;
 }
 
+/** Every nth start brings a second one at the same time, with how sure we are of it. */
+export interface ExtraSpawn {
+  every: number;
+  /** One start that has the extra one (epoch ms). */
+  anchorMs: number;
+  claim: Claim;
+}
+
 export interface EventDefinition {
   kind: EventKind;
   name: string;
@@ -29,6 +37,15 @@ export interface EventDefinition {
   /** An announced change that is not live yet, shown under the card. */
   notice: string | null;
   roster?: RosterEntry[];
+  extra?: ExtraSpawn;
+}
+
+/** Does the start at startMs bring the extra one? Counted in starts of the schedule in force then. */
+export function hasExtraSpawn(def: EventDefinition, startMs: number): boolean {
+  const seg = def.extra ? segmentAt(def.segments, startMs) : null;
+  if (!def.extra || !seg) return false;
+  const k = (startMs - def.extra.anchorMs) / seg.schedule.periodMs;
+  return Number.isInteger(k) && ((k % def.extra.every) + def.extra.every) % def.extra.every === 0;
 }
 
 export interface EventDetails {

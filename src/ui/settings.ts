@@ -3,7 +3,7 @@
 
 import { describeState, notifyState, requestPermission } from './notify';
 import { h } from './dom';
-import { REMINDER_CHOICES, type CardId, type Prefs } from '../store/prefs';
+import { RADAR_LEADS, REMINDER_CHOICES, type CardId, type Prefs } from '../store/prefs';
 
 const CARD_LABELS: Record<CardId, string> = {
   helltide: 'Helltide',
@@ -101,6 +101,16 @@ export function renderSettings(dialog: HTMLDialogElement, hooks: SettingsHooks):
     systemToggle ? h('div', { class: 'options', style: 'margin-top:8px' }, systemToggle) : null,
   );
 
+  const radar = h('fieldset', {}, h('legend', {}, 'Event radar'),
+    h('p', { class: 'help' }, 'How long before a spawn the radar shows it, when its region is known:'),
+    h('div', { style: 'margin-bottom:8px' }, h('div', { class: 'help', style: 'margin:0 0 4px' }, 'World Boss'),
+      radios('radar-wb', String(p.radarLead.worldBoss), RADAR_LEADS.worldBoss.map((m) => [String(m), `${m} min`] as [string, string]),
+        (v) => hooks.change((q) => { q.radarLead.worldBoss = Number(v); }))),
+    h('div', { style: 'margin-bottom:8px' }, h('div', { class: 'help', style: 'margin:0 0 4px' }, 'Legion'),
+      radios('radar-legion', String(p.radarLead.legion), RADAR_LEADS.legion.map((m) => [String(m), `${m} min`] as [string, string]),
+        (v) => hooks.change((q) => { q.radarLead.legion = Number(v); }))),
+  );
+
   const data = h('fieldset', {}, h('legend', {}, 'Data'),
     ...hooks.dataLines().map((line) => h('p', { class: 'help' }, line)),
     h('p', { class: 'help' }, 'Settings are saved in this browser only. Nothing is sent anywhere.'),
@@ -108,6 +118,6 @@ export function renderSettings(dialog: HTMLDialogElement, hooks: SettingsHooks):
 
   dialog.replaceChildren(
     h('div', { class: 'dialog-head' }, h('h2', { id: 'settings-title' }, 'Settings'), close),
-    h('div', { class: 'dialog-body' }, cards, display, title, time, reminders, data),
+    h('div', { class: 'dialog-body' }, cards, display, title, time, reminders, radar, data),
   );
 }

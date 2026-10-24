@@ -1,5 +1,59 @@
 # Changelog
 
+## v0.4.0 (unreleased)
+
+- What you log shows on the cards: the boss and arena you logged for a World Boss spawn, the
+  region you marked for the Helltide in progress, the site of a Legion. Each says whether you saw
+  it or someone told you, and it clears when that event is over. The World Boss card keeps what
+  was seen on its Last line.
+- Every fourth World Boss brings a second one in an expansion region. The card, its list of later
+  spawns and Coming up say so (Inferred: every dated first-hand report of two at once since
+  October 2024 falls on these spawns; Blizzard does not document it).
+- Order predictions, from sightings only. The tracker looks for a repeating order of World Boss
+  bosses and arenas, Helltide regions (base-game and expansion regions apart, since both can run
+  at once) and Legion sites. An order counts only after it predicts 3 or more later sightings right,
+  none wrong, with a lucky match under 1%; it is then Inferred, never Confirmed. A sighting that
+  breaks it withdraws it and learning starts again from there. Orders can also be registered from a
+  source (data/rotations.json) and are shown only once later sightings bear them out. None is
+  registered or inferred today: the research found no order that holds.
+- The Sanctuary Atlas is now the Sanctuary Event Radar: the seven regions at a glance, with a
+  breathing orange-red outline on each region that has a Helltide on, a gold dot (boss and time)
+  for the next World Boss from 30 minutes before (15 or 60 in the settings), and a violet dot for
+  the next Legion from 10 minutes before. Markers pulse only when their event is close; nothing
+  moves under reduced motion. A region lights only when its event's place is known, seen in game
+  or predicted by an order the sightings bear out (labeled Inferred); a report, an unchecked
+  third-party prediction or a region that merely has an arena never lights it, and lights go out
+  when the event is over. The cards follow the same rule, so they tell the same story: a report
+  nobody checked shows only as a note ("reported: ..., not checked"), and places show with their
+  region ("Seared Basin, Kehjistan"). On a phone, where the labels in the drawing are too small,
+  the lit events are also written out under it, one line per event type.
+- A region's details (secondary) list its places and Helltide chest spots: "Active" when someone
+  marked them during this Helltide, or "Not verified now", never "inactive". A mark lasts until the
+  chests move (players report about half an hour in) or the Helltide ends. Chest types: Tortured
+  Gift of Mysteries, Hell's Prize, and the other Tortured Gifts.
+- Sightings record whether you saw it yourself or were told (only your own sightings count as
+  evidence), the realm, Hardcore, and the chest type. Files are version 2; version 1 files still
+  import. Records with unknown values, markup or out-of-range placements are refused or kept as
+  plain text.
+- The World Boss, Helltide and Legion notes say what the research found: no source documents or
+  claims an order for any of them.
+- The overview places the regions as published descriptions do: Scosglen in the north, the Dry
+  Steppes and Kehjistan in the west, the Fractured Peaks toward the middle, Hawezar in the
+  south-east, Nahantu the southernmost with its north-east reaching Hawezar, and the Skovos islands
+  off Nahantu's western coast. A test checks each placement against its source.
+- The World Boss and Legion start-time sources link to the README's explanation instead of naming
+  a file that is not published.
+- The README screenshot shows v0.4.
+- Ashava is Confirmed in the World Boss roster, seen in game on 2026-10-24.
+- A sighting can note where a prediction was first shown, apart from whether it was checked in
+  game; one that was not checked is never used as evidence or shown on a card. Reports kept in the
+  tracker's own data are not shown on the cards either; only your own are.
+- The 8-spawn World Boss order other trackers publish is registered to be tested (it predicts
+  nothing until our in-game sightings bear it out). Dated first-hand reports fit one place in it
+  for two days at most.
+- A start time's confirmation counts distinct spawns, dated by the spawn: two records of one spawn
+  (a double spawn, or the same one logged twice) count once.
+
 ## v0.3.0 (unreleased)
 
 - Sanctuary Atlas replaces the schematic map: a stylized overview of the seven regions and an

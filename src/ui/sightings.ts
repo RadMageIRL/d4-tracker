@@ -7,12 +7,12 @@ import type { RegionRecord } from '../data/schema';
 import type { EventKind } from '../engine/events';
 import { calendarDate, clockTime } from '../engine/format';
 import {
-  cleanObservation, merge, newId, parseFile, rotationCheck, timingCheck, toFile,
-  TIMING_TOLERANCE_MS, type Observation, type ObservedEvent, type RotationField,
+  cleanObservation, isSeen, merge, newId, parseFile, timingCheck, toFile,
+  TIMING_TOLERANCE_MS, type ArtPosition, type Observation, type ObservedEvent, type Realm, type Timing,
 } from '../engine/observations';
 import type { Segment } from '../engine/segments';
 import { anchorEvidence, anchorProgress } from '../engine/verification';
-import type { ViewContext } from './cards';
+import { badge, type OrderNote, type ViewContext } from './cards';
 import { h, nodes } from './dom';
 
 const EVENT_NAMES: Record<ObservedEvent, string> = {
@@ -31,8 +31,26 @@ export interface SightingsHooks {
   regions: RegionRecord[];
   bosses: string[];
   places: (event: ObservedEvent) => string[];
+  chestTypes: { id: string; name: string }[];
+  /** What the sightings say about each order of an event (the same notes as the cards). */
+  orders: (kind: EventKind) => OrderNote[];
+  /** The realm last chosen in the form, offered again next time. */
+  realm: () => Realm | undefined;
+  setRealm: (realm: Realm | undefined) => void;
   ctx: () => ViewContext;
   onChange: () => void;
+}
+
+/** What a card or the atlas already knows when it opens the form. */
+export interface FormPreset {
+  atMs?: number;
+  timing?: Timing;
+  region?: string;
+  place?: string;
+  chest?: string;
+  pos?: ArtPosition;
+  /** A short line saying what the form was opened for. */
+  intro?: string;
 }
 
 /** One line for an event card: what the player's sightings say about its start times. */
@@ -77,9 +95,20 @@ export class SightingsPanel {
     );
   }
 
-  openForm(event: ObservedEvent = 'worldBoss'): void {
-    this.renderForm(event);
+  openForm(event: ObservedEvent = 'worldBoss', preset: FormPreset = {}): void {
+    this.renderForm(event, preset);
     if (!this.dialog.open) this.dialog.showModal();
+  }
+
+  /** Save a sighting without the form (a one-click mark from the atlas). Returns false if the browser did not keep it. */
+  quickSave(raw: Partial<Observation> & Pick<Observation, 'event' | 'at' | 'timing'>, message: string): boolean {
+    const o = cleanObservation({ id: newId(Date.now()), recordedAt: new Date().toISOString(), ...raw });
+    if (!o) { this.say('That could not be saved.', false); return false; }
+    const saved = this.hooks.setLocal([...this.hooks.local(), o]);
+    this.key = '';
+    this.hooks.onChange();
+    this.say(saved ? message : 'The browser did not save it (storage is blocked).', saved);
+    return saved;
   }
 
   update(): void {
@@ -93,8 +122,7 @@ export class SightingsPanel {
   }
 
   private renderSummary(all: Observation[]): void {
-    const regions = this.hooks.regions.length;
-    const block = (event: ObservedEvent, kind: EventKind, fields: [RotationField, string, number][]) => {
+    const block = (event: ObservedEvent, kind: EventKind) => {
       const segs = this.hooks.segments(kind);
       const mine = all.filter((o) => o.event === event);
       const t = timingCheck(all, segs, event);
@@ -113,10 +141,10 @@ export class SightingsPanel {
       if (seen.size) {
         lines.push(h('li', {}, `Places seen in game (each sighting confirms the place exists): ${[...seen].map(([p, n]) => `${p} (${n})`).join(', ')}.`));
       }
-      for (const [field, label, domain] of fields) {
-        const r = rotationCheck(all, segs, event, field, domain);
-        if (!r.samples) continue;
-        lines.push(h('li', { class: r.verdict === 'consistent' ? 'ok' : '' }, `${label} order: ${r.explanation}${r.conflicts ? ` (${r.conflicts} conflicting record${r.conflicts === 1 ? '' : 's'} left out)` : ''}`));
+      const reported = mine.filter((o) => !isSeen(o)).length;
+      if (reported) lines.push(h('li', {}, `${reported} secondhand report${reported === 1 ? '' : 's'}: shown on the cards for their own event, never used as evidence.`));
+      if (mine.length) {
+        for (const o of this.hooks.orders(kind)) lines.push(h('li', { class: o.confidence === 'unknown' ? '' : 'ok' }, badge(o.label, o.confidence), ` ${o.text}`));
       }
       return h('div', {},
         h('h3', {}, `${EVENT_NAMES[event]} `, h('span', { class: 'note' }, `${mine.length} sighting${mine.length === 1 ? '' : 's'}`)),
@@ -129,14 +157,14 @@ export class SightingsPanel {
       byPlace.set(k, (byPlace.get(k) ?? 0) + 1);
     }
     this.summary.replaceChildren(
-      block('worldBoss', 'worldBoss', [['boss', 'Boss', Math.max(2, this.hooks.bosses.length)], ['place', 'Arena', regions]]),
-      block('legion', 'legion', [['place', 'Place', regions], ['region', 'Region', regions]]),
-      block('helltide', 'helltide', [['region', 'Region', regions]]),
+      block('worldBoss', 'worldBoss'),
+      block('legion', 'legion'),
+      block('helltide', 'helltide'),
       h('div', {},
         h('h3', {}, 'Helltide chests ', h('span', { class: 'note' }, `${chests.length} sighting${chests.length === 1 ? '' : 's'}`)),
         byPlace.size
           ? h('ul', {}, ...[...byPlace].sort((a, b) => b[1] - a[1]).map(([k, n]) => h('li', {}, `${k}: seen ${n} time${n === 1 ? '' : 's'}`)))
-          : h('p', { class: 'muted' }, 'None logged yet. Each logged place becomes a candidate chest spot.')),
+          : h('p', { class: 'muted' }, "None logged yet. Each logged spot becomes a candidate chest spot in its region's details.")),
     );
   }
 
@@ -145,14 +173,18 @@ export class SightingsPanel {
     const all = this.hooks.all().slice(-12).reverse();
     this.recent.replaceChildren(...all.map((o) => {
       const t = Date.parse(o.at);
-      const parts = [EVENT_NAMES[o.event], o.boss, o.place, regionName(this.hooks.regions, o.region)].filter(Boolean).join(' · ');
+      const chest = o.chest ? this.hooks.chestTypes.find((c) => c.id === o.chest)?.name : undefined;
+      const parts = [EVENT_NAMES[o.event], chest, o.boss, o.place, regionName(this.hooks.regions, o.region), o.realm,
+        isSeen(o) ? null : 'not verified in game', o.thirdParty ? (isSeen(o) ? 'third-party prediction, checked in game' : 'third-party prediction') : null]
+        .filter(Boolean).join(' · ');
       const del = local.has(o.id) ? h('button', { class: 'link', type: 'button', 'aria-label': 'Delete this sighting' }, 'delete') : null;
       del?.addEventListener('click', () => {
         this.hooks.setLocal(this.hooks.local().filter((x) => x.id !== o.id));
         this.key = '';
         this.hooks.onChange();
       });
-      return h('li', {}, `${calendarDate(t, ctx.timeZone)} ${clockTime(t, ctx.timeZone, ctx.clock)} · ${parts}${o.timing === 'during' ? ' (already running)' : ''}`,
+      const when = o.timing === 'none' ? 'spot' : `${calendarDate(t, ctx.timeZone)} ${clockTime(t, ctx.timeZone, ctx.clock)}`;
+      return h('li', {}, `${when} · ${parts}${o.timing === 'during' && o.event !== 'helltideChest' ? ' (already running)' : ''}`,
         local.has(o.id) ? '' : h('span', { class: 'note' }, ' shared data'), del ? ' ' : '', del);
     }));
     if (!all.length) this.recent.replaceChildren(h('li', { class: 'muted' }, 'None yet.'));
@@ -192,10 +224,10 @@ export class SightingsPanel {
     this.status.className = `status-line ${ok ? 'ok' : 'warn'}`;
   }
 
-  private renderForm(event: ObservedEvent): void {
+  private renderForm(event: ObservedEvent, preset: FormPreset): void {
     const ctx = this.hooks.ctx();
     const utc = ctx.timeZone === 'UTC';
-    const now = new Date(ctx.nowMs);
+    const now = new Date(preset.atMs ?? ctx.nowMs);
     const pad = (n: number) => String(n).padStart(2, '0');
     const y = utc ? now.getUTCFullYear() : now.getFullYear();
     const mo = (utc ? now.getUTCMonth() : now.getMonth()) + 1;
@@ -207,25 +239,41 @@ export class SightingsPanel {
       h('option', { value: e, selected: e === event }, EVENT_NAMES[e])));
     const date = h('input', { type: 'date', id: 'sight-date', value: `${y}-${pad(mo)}-${pad(d)}`, required: true });
     const time = h('input', { type: 'time', id: 'sight-time', value: `${pad(hh)}:${pad(mm)}`, step: 60, required: true });
-    const how = h('select', { id: 'sight-timing' },
-      h('option', { value: 'start' }, 'It started then (or the in-game timer showed that start)'),
-      h('option', { value: 'during' }, 'It was already running then'));
+    const how = h('select', { id: 'sight-timing' });
+    const timingOptions = (e: ObservedEvent): [Timing, string][] => (e === 'helltideChest'
+      ? [['during', 'It was there, ready to open, at that time'], ['none', 'Just the spot (no time)']]
+      : [['start', 'It started then (or the in-game timer showed that start)'], ['during', 'It was already running then']]);
     const region = h('select', { id: 'sight-region' }, h('option', { value: '' }, 'Not noted'),
-      ...this.hooks.regions.map((r) => h('option', { value: r.id }, r.name)));
+      ...this.hooks.regions.map((r) => h('option', { value: r.id, selected: r.id === preset.region }, r.name)));
     const listId = 'sight-places';
     const placeList = h('datalist', { id: listId });
-    const place = h('input', { type: 'text', id: 'sight-place', list: listId, maxlength: 120, autocomplete: 'off' });
+    const place = h('input', { type: 'text', id: 'sight-place', list: listId, maxlength: 120, autocomplete: 'off', value: preset.place ?? '' });
     const boss = h('select', { id: 'sight-boss' }, h('option', { value: '' }, 'Not noted'),
       ...this.hooks.bosses.map((b) => h('option', { value: b }, b)));
+    const chest = h('select', { id: 'sight-chest' },
+      ...this.hooks.chestTypes.map((c) => h('option', { value: c.id, selected: c.id === preset.chest }, c.name)));
+    const lastRealm = this.hooks.realm();
+    const realm = h('select', { id: 'sight-realm' }, h('option', { value: '' }, 'Not noted'),
+      h('option', { value: 'seasonal', selected: lastRealm === 'seasonal' }, 'Seasonal'),
+      h('option', { value: 'eternal', selected: lastRealm === 'eternal' }, 'Eternal'));
+    const hardcore = h('input', { type: 'checkbox', id: 'sight-hardcore' });
+    const mine = h('input', { type: 'checkbox', id: 'sight-seen', checked: true });
     const note = h('input', { type: 'text', id: 'sight-note', maxlength: 120 });
     const error = h('p', { class: 'status-line warn', role: 'alert' });
 
     const bossRow = h('label', { class: 'field' }, 'Boss', boss);
+    const chestRow = h('label', { class: 'field' }, 'Chest', chest);
     const howRow = h('label', { class: 'field' }, 'Time is', how);
+    const placeLabel = h('span', {});
     const sync = () => {
       const e = what.value as ObservedEvent;
       bossRow.hidden = e !== 'worldBoss';
-      howRow.hidden = e === 'helltideChest';
+      chestRow.hidden = e !== 'helltideChest';
+      const keep = how.value as Timing;
+      const options = timingOptions(e);
+      const pick = options.some(([v]) => v === preset.timing) ? preset.timing : options.some(([v]) => v === keep) ? keep : options[0]![0];
+      how.replaceChildren(...options.map(([v, label]) => h('option', { value: v, selected: v === pick }, label)));
+      placeLabel.textContent = e === 'helltideChest' ? 'Spot (Helltide zone and the nearest landmark the map names)' : 'Place (arena, Legion site, landmark)';
       placeList.replaceChildren(...this.hooks.places(e).map((p) => h('option', { value: p })));
     };
     what.addEventListener('change', sync);
@@ -235,15 +283,22 @@ export class SightingsPanel {
     const cancel = h('button', { class: 'btn', type: 'button' }, 'Cancel');
     cancel.addEventListener('click', () => this.dialog.close());
     const form = h('form', { method: 'dialog', class: 'dialog-body sight-form' },
+      preset.intro ? h('p', { class: 'help' }, preset.intro) : null,
       h('label', { class: 'field' }, 'What', what),
       h('div', { class: 'field-row' },
         h('label', { class: 'field' }, `Date (${utc ? 'UTC' : 'your time'})`, date),
         h('label', { class: 'field' }, `Time (${utc ? 'UTC' : 'your time'})`, time)),
       howRow,
       h('label', { class: 'field' }, 'Region', region),
-      h('label', { class: 'field' }, 'Place (arena, Legion site, landmark)', place, placeList),
+      h('label', { class: 'field' }, placeLabel, place, placeList),
       bossRow,
+      chestRow,
+      h('div', { class: 'field-row' },
+        h('label', { class: 'field' }, 'Realm', realm),
+        h('label', { class: 'check' }, hardcore, ' Hardcore')),
+      h('label', { class: 'check' }, mine, ' I saw this myself in game (untick for something someone told you)'),
       h('label', { class: 'field' }, 'Note', note),
+      preset.pos ? h('p', { class: 'help' }, 'Placed on the atlas drawing where you clicked.') : null,
       error,
       h('div', { class: 'options' }, save, cancel),
     );
@@ -254,14 +309,22 @@ export class SightingsPanel {
       if (![Y, M, D, H, Mi].every((n) => Number.isFinite(n))) { error.textContent = 'Enter a date and a time.'; return; }
       const ms = utc ? Date.UTC(Y!, M! - 1, D!, H!, Mi!) : new Date(Y!, M! - 1, D!, H!, Mi!).getTime();
       const e = what.value as ObservedEvent;
+      if (e === 'helltideChest' && (!region.value || !place.value.trim())) { error.textContent = 'A chest spot needs its region and a name for the spot.'; return; }
+      const r = (realm.value || undefined) as Realm | undefined;
+      this.hooks.setRealm(r);
       const raw = {
         id: newId(Date.now()),
         event: e,
         at: new Date(ms).toISOString(),
-        timing: e === 'helltideChest' ? 'none' : how.value,
+        timing: how.value,
         region: region.value || undefined,
         place: place.value || undefined,
         boss: e === 'worldBoss' ? boss.value || undefined : undefined,
+        chest: e === 'helltideChest' ? chest.value : undefined,
+        realm: r,
+        hardcore: hardcore.checked ? true : undefined,
+        provenance: mine.checked ? undefined : 'reported',
+        pos: e === 'helltideChest' ? preset.pos : undefined,
         note: note.value || undefined,
         recordedAt: new Date().toISOString(),
       };

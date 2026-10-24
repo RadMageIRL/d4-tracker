@@ -1,0 +1,25 @@
+{
+  "format": "d4-tracker-observations",
+  "version": 2,
+  "exportedAt": "2026-10-24T15:00:00.000Z",
+  "__proto__": { "polluted": true },
+  "observations": [
+    {
+      "id": "evil1",
+      "event": "helltideChest",
+      "at": "2026-10-24T15:05:00Z",
+      "timing": "during",
+      "region": "kehjistan",
+      "place": "<img src=x onerror=\"document.title='pwned'\">",
+      "chest": "mystery",
+      "note": "<script>document.title='pwned'</script>",
+      "recordedAt": "2026-10-24T15:05:00Z",
+      "constructor": { "prototype": { "polluted": true } }
+    },
+    { "id": "evil2", "event": "worldBoss", "at": "2026-10-24T11:00:00Z", "timing": "start", "region": "../../etc", "recordedAt": "2026-10-24T11:00:00Z" },
+    { "id": "evil3", "event": "helltideChest", "at": "2026-10-24T15:05:00Z", "timing": "during", "region": "kehjistan", "place": "Spot", "chest": "Mystery<>", "recordedAt": "2026-10-24T15:05:00Z" },
+    { "id": "evil4", "event": "helltideChest", "at": "2026-10-24T15:05:00Z", "timing": "none", "region": "kehjistan", "place": "Spot", "chest": "mystery", "pos": { "art": "kehjistan:zzzz", "x": 5, "y": -1 }, "recordedAt": "2026-10-24T15:05:00Z" },
+    { "id": "evil5", "event": "worldBoss", "at": "not a time", "timing": "start", "recordedAt": "2026-10-24T11:00:00Z" },
+    { "id": "evil6", "event": "dungeon", "at": "2026-10-24T11:00:00Z", "timing": "start", "recordedAt": "2026-10-24T11:00:00Z" }
+  ]
+}

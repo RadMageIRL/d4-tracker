@@ -23,6 +23,22 @@ export const OBSERVED_EVENTS: ObservedEvent[] = ['worldBoss', 'legion', 'helltid
 export type Timing = 'start' | 'during' | 'none';
 export const TIMINGS: Timing[] = ['start', 'during', 'none'];
 
+/**
+ * seen     - the person who recorded it saw it in game (the default, and all that counts as evidence)
+ * reported - someone else said so (a friend, a chat, a stream): shown, never used as evidence
+ */
+export type Provenance = 'seen' | 'reported';
+export type Realm = 'seasonal' | 'eternal';
+export const REALMS: Realm[] = ['seasonal', 'eternal'];
+
+/** A spot placed by the player on one of the atlas drawings: fractions of its width and height. */
+export interface ArtPosition {
+  /** Which drawing: region id and a short hash of the drawing, so a redrawn map can be noticed. */
+  art: string;
+  x: number;
+  y: number;
+}
+
 export interface Observation {
   id: string;
   event: ObservedEvent;
@@ -35,12 +51,35 @@ export interface Observation {
   place?: string;
   boss?: string;
   note?: string;
+  /**
+   * In-game verification. Absent means seen: the recorder saw it in game (every version 1 record
+   * was the recorder's own sighting). "reported" means not checked in game.
+   */
+  provenance?: Provenance;
+  /**
+   * A second, separate provenance: where a prediction or display came from when the record started
+   * as one (for example another tracker's page). Kept in the data for the record; the page only
+   * says "third-party prediction", never the name. It never makes a record evidence by itself:
+   * only provenance "seen" does.
+   */
+  thirdParty?: string;
+  realm?: Realm;
+  hardcore?: true;
+  /** Helltide chest type id (data/locations.json chestTypes). */
+  chest?: string;
+  pos?: ArtPosition;
   /** ISO UTC, when the record was made. */
   recordedAt: string;
 }
 
 export const FILE_FORMAT = 'd4-tracker-observations';
-export const FILE_VERSION = 1;
+/** 2 added provenance, thirdParty, realm, hardcore, chest and pos; version 1 files still read. */
+export const FILE_VERSION = 2;
+
+/** Seen in game by whoever recorded it: the only sightings used as evidence. */
+export function isSeen(o: Observation): boolean {
+  return o.provenance !== 'reported';
+}
 
 export interface ObservationFile {
   format: typeof FILE_FORMAT;
@@ -70,12 +109,35 @@ export function cleanObservation(raw: unknown): Observation | null {
   const id = text(r.id);
   if (!id || !/^[A-Za-z0-9_-]+$/.test(id)) return null;
   const o: Observation = { id, event, at: new Date(Date.parse(r.at)).toISOString(), timing, recordedAt: new Date(Date.parse(r.recordedAt)).toISOString() };
-  for (const k of ['region', 'place', 'boss', 'note'] as const) {
+  for (const k of ['region', 'place', 'boss', 'note', 'thirdParty'] as const) {
     const v = text(r[k]);
     if (v) o[k] = v;
   }
   if (o.region && !/^[a-z_]+$/.test(o.region)) return null;
+  if (r.provenance === 'reported') o.provenance = 'reported';
+  if (REALMS.includes(r.realm as Realm)) o.realm = r.realm as Realm;
+  if (r.hardcore === true) o.hardcore = true;
+  const chest = text(r.chest);
+  if (chest) {
+    if (!/^[a-z][a-z-]{0,30}$/.test(chest)) return null;
+    o.chest = chest;
+  }
+  if (r.pos !== undefined) {
+    const pos = cleanPosition(r.pos);
+    if (!pos) return null;
+    o.pos = pos;
+  }
   return o;
+}
+
+/** A position inside a drawing (both fractions from 0 to 1), or null. */
+export function cleanPosition(raw: unknown): ArtPosition | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const p = raw as Record<string, unknown>;
+  if (typeof p.art !== 'string' || !/^[a-z_]+:[0-9a-f]{8}$/.test(p.art)) return null;
+  const ok = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= 1;
+  if (!ok(p.x) || !ok(p.y)) return null;
+  return { art: p.art, x: Math.round(p.x * 10000) / 10000, y: Math.round(p.y * 10000) / 10000 };
 }
 
 /** A new id that is unique enough for one player's records (time plus randomness). */
@@ -112,9 +174,13 @@ export function parseFile(textContent: string): ParsedFile {
   return { observations, rejected };
 }
 
-/** Same sighting recorded twice: same event, same minute, same region, place and boss. */
+/**
+ * Same sighting recorded twice: same event, minute, timing, region, place, boss, chest type and map
+ * placement. A chest marked active and then placed on the map in the same minute are two records.
+ */
 function sightingKey(o: Observation): string {
-  return [o.event, Math.floor(Date.parse(o.at) / 60000), o.region ?? '', o.place ?? '', o.boss ?? ''].join('|');
+  const pos = o.pos ? `${o.pos.art}@${o.pos.x},${o.pos.y}` : '';
+  return [o.event, Math.floor(Date.parse(o.at) / 60000), o.timing, o.region ?? '', o.place ?? '', o.boss ?? '', o.chest ?? '', pos].join('|');
 }
 
 export function merge(existing: Observation[], incoming: Observation[]): { merged: Observation[]; added: number; duplicates: number } {
@@ -165,7 +231,7 @@ export function offsetFromSchedule(segs: Segment[], t: number): number | null {
 export function timingCheck(observations: Observation[], segs: Segment[], event: ObservedEvent): TimingResult {
   const result: TimingResult = { checked: 0, agree: 0, disagree: [], latestAt: null };
   for (const o of observations) {
-    if (o.event !== event || o.timing === 'none') continue;
+    if (o.event !== event || o.timing === 'none' || !isSeen(o)) continue;
     const t = Date.parse(o.at);
     if (o.timing === 'start') {
       const off = offsetFromSchedule(segs, t);
@@ -230,19 +296,15 @@ export function rotationCheck(
   const conflicted = new Set<number>();
   const counts: Record<string, number> = {};
   for (const o of observations) {
-    if (o.event !== event || o.timing === 'none') continue;
+    if (o.event !== event || o.timing === 'none' || !isSeen(o)) continue;
     const value = o[field];
     if (!value) continue;
-    const t = Date.parse(o.at) + (o.timing === 'start' ? TIMING_TOLERANCE_MS : 0);
-    const occ = lastStart(segs, t);
+    const occ = occurrenceOf(segs, o);
     if (!occ) continue;
-    const seg = segs.find((s) => occ.startMs >= s.fromMs && occ.startMs < s.untilMs);
-    if (!seg) continue;
-    const index = indexAt(seg.schedule, occ.startMs);
-    const prev = byIndex.get(index);
-    if (prev !== undefined && prev !== value) conflicted.add(index);
+    const prev = byIndex.get(occ.index);
+    if (prev !== undefined && prev !== value) conflicted.add(occ.index);
     else if (prev === undefined) {
-      byIndex.set(index, value);
+      byIndex.set(occ.index, value);
       counts[value] = (counts[value] ?? 0) + 1;
     }
   }
@@ -253,9 +315,41 @@ export function rotationCheck(
     byIndex.delete(i);
   }
   const entries = [...byIndex.entries()];
-  const samples = entries.length;
-  const base = { field, samples, counts, conflicts: conflicted.size };
+  const { values: _values, ...fit } = cycleFit(entries, domainSize, maxPeriod);
+  return { field, samples: entries.length, counts, conflicts: conflicted.size, ...fit };
+}
 
+/**
+ * The occurrence a sighting belongs to, with its index in the schedule in force then. A start
+ * typed up to the tolerance early still lands in its own occurrence, not the one before.
+ */
+export function occurrenceOf(segs: Segment[], o: Observation): { index: number; startMs: number; endMs: number; segment: Segment } | null {
+  const t = Date.parse(o.at) + (o.timing === 'start' ? TIMING_TOLERANCE_MS : 0);
+  const occ = lastStart(segs, t);
+  if (!occ) return null;
+  const segment = segs.find((s) => occ.startMs >= s.fromMs && occ.startMs < s.untilMs);
+  if (!segment) return null;
+  return { index: indexAt(segment.schedule, occ.startMs), startMs: occ.startMs, endMs: occ.endMs, segment };
+}
+
+export interface CycleFit {
+  verdict: RotationResult['verdict'];
+  period?: number;
+  repeats?: number;
+  chance?: number;
+  testedUpTo: number;
+  explanation: string;
+  /** For a fit: the value at each position of the cycle (position = index mod period). */
+  values?: string[];
+}
+
+/**
+ * The shortest fixed cycle that fits one value per occurrence index, under the rules above:
+ * every position seen MIN_REPEATS times, a chance fit under MAX_CHANCE (adjusted for the cycle
+ * lengths tried), and "no pattern" only once cycles up to MIN_RULED_OUT are ruled out.
+ */
+export function cycleFit(entries: [number, string][], domainSize: number, maxPeriod = 12): CycleFit {
+  const samples = entries.length;
   // Which cycle lengths do the sightings cover well enough to test?
   const covered = (p: number) => {
     const per = new Map<number, number>();
@@ -268,7 +362,7 @@ export function rotationCheck(
 
   if (testedUpTo === 0) {
     return {
-      ...base, verdict: 'not-enough-data', testedUpTo,
+      verdict: 'not-enough-data', testedUpTo,
       explanation: samples === 0 ? 'No sightings yet.' : `${samples} sighting${samples === 1 ? '' : 's'}: not enough to test for a repeating cycle.`,
     };
   }
@@ -293,24 +387,25 @@ export function rotationCheck(
     const repeats = Math.min(...per.values());
     if (chance >= MAX_CHANCE) {
       return {
-        ...base, verdict: 'not-enough-data', testedUpTo, period: p, repeats, chance,
+        verdict: 'not-enough-data', testedUpTo, period: p, repeats, chance,
         explanation: `Fits a cycle of ${p} so far, but random values would fit that well about ${pct(chance)} of the time. Needs more sightings.`,
       };
     }
     return {
-      ...base, verdict: 'consistent', testedUpTo, period: p, repeats, chance,
+      verdict: 'consistent', testedUpTo, period: p, repeats, chance,
+      values: Array.from({ length: p }, (_, r) => classValue.get(r)!),
       explanation: `Consistent with a cycle of ${p} so far (every position seen at least ${repeats} times; a chance fit is about ${pct(chance)}). ` +
         'Not proven: Blizzard has not documented a rotation, and one more sighting can break it.',
     };
   }
   if (testedUpTo < MIN_RULED_OUT) {
     return {
-      ...base, verdict: 'not-enough-data', testedUpTo,
+      verdict: 'not-enough-data', testedUpTo,
       explanation: `${samples} sightings: not enough to test for a repeating order yet (each position of a cycle has to be seen twice).`,
     };
   }
   return {
-    ...base, verdict: 'no-pattern', testedUpTo,
+    verdict: 'no-pattern', testedUpTo,
     explanation: `No cycle of up to ${testedUpTo} fits the ${samples} sightings.`,
   };
 }

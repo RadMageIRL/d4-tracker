@@ -21,8 +21,20 @@ export interface CardExtras {
   sightings: string | null;
   /** Progress toward confirming an inferred start time from in-game sightings. */
   anchorProgress: string | null;
-  /** Notes on boss and location rotations (all unknown until shown otherwise). */
-  rotationNotes: string[];
+  /** What the sightings say about each order (boss, arena, region, site). */
+  orders: OrderNote[];
+  /** For each later start on the card: a predicted boss or place, or null. */
+  laterNotes: (string | null)[];
+  /** What was seen at the previous start, for spawns (e.g. "Ashava, seen in game"). */
+  lastNote: string | null;
+  /** The next start brings a second one at the same time (every fourth World Boss). */
+  extra: { text: string; confidence: Confidence } | null;
+}
+
+export interface OrderNote {
+  label: string;
+  confidence: Confidence;
+  text: string;
 }
 
 // soonMs: how close the next start must be for the card to say Soon instead of Next.
@@ -47,6 +59,11 @@ export function badge(label: string, confidence: Confidence): HTMLElement {
   return h('span', { class: `badge conf-${confidence}` }, `${label}: ${CONFIDENCE_LABEL[confidence]}`);
 }
 
+/** Just the confidence, for a list where the label would only repeat it. */
+export function confidenceBadge(confidence: Confidence): HTMLElement {
+  return h('span', { class: `badge conf-${confidence}` }, CONFIDENCE_LABEL[confidence]);
+}
+
 interface FactRow {
   dd: HTMLElement;
   value: HTMLElement;
@@ -61,13 +78,28 @@ function factRow(dl: HTMLElement, label: string): FactRow {
   return { dd, value, hint };
 }
 
-/** Show a fact on one line: its value, or "Unknown" with a short hint (the full reason is under About). */
+const BASIS_HINT = {
+  seen: 'seen in game',
+  reported: 'reported to you, not checked',
+  predicted: 'predicted',
+} as const;
+
+/**
+ * Show a fact on one line: its value, or "Unknown" with a short hint (the full reason is under
+ * About). A known value says whether it was seen, reported or predicted, so a prediction never
+ * reads as a sighting.
+ */
 function showFact(row: FactRow, fact: Fact<string> | undefined): void {
   setText(row.value, fact?.known ? fact.value : 'Unknown');
   row.dd.classList.toggle('unknown', !fact?.known);
-  const hint = fact && !fact.known && fact.hint ? ` · ${fact.hint}` : '';
+  for (const b of Object.keys(BASIS_HINT)) row.dd.classList.toggle(`basis-${b}`, !!fact?.known && fact.basis === b);
+  let hint = '';
+  if (fact && !fact.known && fact.hint) hint = ` · ${fact.hint}`;
+  else if (fact?.known && fact.basis) {
+    hint = ` · ${BASIS_HINT[fact.basis]}${fact.basis === 'predicted' ? ` (${CONFIDENCE_LABEL[fact.confidence ?? 'inferred']})` : ''}`;
+  }
   setText(row.hint, hint);
-  row.dd.title = fact && !fact.known ? fact.reason : '';
+  row.dd.title = !fact ? '' : fact.known ? (fact.basis ? fact.source : '') : fact.reason;
 }
 
 function claimBlock(title: string, c: Claim, extra: string | null): HTMLElement {
@@ -92,6 +124,7 @@ export class EventCard {
   private lastRow: FactRow | null;
   private identityRow: FactRow | null;
   private locationRow: FactRow;
+  private extraRow: FactRow | null;
   private list = h('ul', { class: 'next-list', 'aria-label': 'Later' });
   private notice = h('p', { class: 'notice' });
   private trust = h('div', { class: 'trust' });
@@ -99,12 +132,13 @@ export class EventCard {
   private about = h('div', {});
   private aboutKey = '';
 
-  constructor(private kind: EventKind, title: string, opts: { identity: boolean; instant: boolean; onLog: () => void }) {
+  constructor(private kind: EventKind, title: string, opts: { identity: boolean; instant: boolean; extra: boolean; onLog: () => void }) {
     const headId = `card-${kind}`;
     this.nextRow = factRow(this.dl, 'Next');
     this.lastRow = opts.instant ? factRow(this.dl, 'Last') : null;
     this.identityRow = opts.identity ? factRow(this.dl, 'Boss') : null;
     this.locationRow = factRow(this.dl, WORDS[kind].locationLabel);
+    this.extraRow = opts.extra ? factRow(this.dl, 'Also') : null;
     this.logLink = h('button', { class: 'link log-link', type: 'button' }, 'Log a sighting');
     this.logLink.addEventListener('click', opts.onLog);
     this.el = h('article', { class: 'panel event', 'data-kind': kind, 'aria-labelledby': headId },
@@ -158,13 +192,23 @@ export class EventCard {
     // Instant events (a spawn with no known window) show how long ago the last one started.
     if (this.lastRow && st.previous) {
       const ago = ctx.nowMs - st.previous.startMs;
-      showFact(this.lastRow, { known: true, value: `${when(st.previous.startMs, ctx)} (${agoWords(ago)})`, source: '' });
+      const seen = extras.lastNote ? ` · ${extras.lastNote}` : '';
+      showFact(this.lastRow, { known: true, value: `${when(st.previous.startMs, ctx)} (${agoWords(ago)})${seen}`, source: '' });
     }
 
     if (this.identityRow) showFact(this.identityRow, st.details.identity);
     showFact(this.locationRow, st.details.location);
+    if (this.extraRow) {
+      const x = extras.extra;
+      for (const el of [this.extraRow.dd, this.extraRow.dd.previousElementSibling as HTMLElement]) el.hidden = !x;
+      if (x) {
+        setText(this.extraRow.value, x.text);
+        setText(this.extraRow.hint, ` · ${CONFIDENCE_LABEL[x.confidence]}`);
+        this.extraRow.dd.title = 'Every fourth spawn, by every dated first-hand report since October 2024. Not documented by Blizzard.';
+      }
+    }
 
-    const items = st.later.map((o) => when(o.startMs, ctx));
+    const items = st.later.map((o, i) => (extras.laterNotes[i] ? `${when(o.startMs, ctx)} · ${extras.laterNotes[i]}` : when(o.startMs, ctx)));
     const current = [...this.list.children].map((li) => li.textContent);
     if (current.join('|') !== items.join('|')) this.list.replaceChildren(...items.map((t) => h('li', {}, t)));
 
@@ -178,13 +222,15 @@ export class EventCard {
     const stale = extras.checkedDaysAgo > STALE_DAYS;
     const unknowns = [st.details.identity, st.details.location].filter((f): f is Fact<string> & { known: false } => !!f && !f.known);
     const key = [seg?.interval.confidence, seg?.phase.confidence, extras.checkedDaysAgo, extras.sightings, extras.anchorProgress,
-      unknowns.map((u) => u.reason).join('|'), extras.rotationNotes.join('|')].join('#');
+      unknowns.map((u) => u.reason).join('|'), extras.orders.map((o) => `${o.confidence}${o.text}`).join('|')].join('#');
+    const trusted = extras.orders.filter((o) => o.confidence !== 'unknown');
     if (key === this.aboutKey) return;
     this.aboutKey = key;
     const ago = extras.checkedDaysAgo <= 0 ? 'today' : `${extras.checkedDaysAgo} ${extras.checkedDaysAgo === 1 ? 'day' : 'days'} ago`;
     this.trust.replaceChildren(...nodes(
       seg ? badge('Interval', seg.interval.confidence) : null,
       seg ? badge('Start time', seg.phase.confidence) : null,
+      ...trusted.map((o) => badge(o.label, o.confidence)),
       h('span', { class: stale ? 'checked stale' : 'checked' }, `Checked ${ago}`),
       this.logLink,
     ));
@@ -194,8 +240,8 @@ export class EventCard {
       seg ? claimBlock('Start time', seg.phase, phaseExtra) : null,
       extras.sightings ? h('p', { class: 'claim' }, `Your sightings: ${extras.sightings}`) : null,
       unknowns.length ? h('div', { class: 'claim' }, h('p', {}, badge('Location', 'unknown')),
-        ...unknowns.map((u) => h('p', { class: 'source' }, u.reason)),
-        ...extras.rotationNotes.map((n) => h('p', { class: 'source' }, n))) : null,
+        ...unknowns.map((u) => h('p', { class: 'source' }, u.reason))) : null,
+      ...extras.orders.map((o) => h('div', { class: 'claim order-note' }, h('p', {}, badge(o.label, o.confidence), ` ${o.text}`))),
       h('p', { class: 'muted' }, `Data checked ${st.definition.checkedOn}.${stale ? ' That is a while ago: a patch or a new season may have changed it.' : ''}`),
     ));
   }

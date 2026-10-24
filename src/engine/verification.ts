@@ -8,14 +8,18 @@
 // recurring rotation (which place comes next) is never Confirmed from sightings at all: the best
 // they can give is "inferred, consistent so far", and only with the evidence rotationCheck asks for.
 
-import { TIMING_TOLERANCE_MS, offsetFromSchedule, type Observation, type ObservedEvent } from './observations';
+import { isSeen, TIMING_TOLERANCE_MS, offsetFromSchedule, type Observation, type ObservedEvent } from './observations';
 import type { Segment } from './segments';
 
 export const MIN_MATCHING = 3;
 export const MIN_DAYS = 2;
 
 export interface AnchorEvidence {
-  /** Start-time sightings within the tolerance of a calculated start. */
+  /**
+   * Distinct calculated starts that a start-time sighting matched (within the tolerance). Two
+   * records of one spawn (the main and the second World Boss, or the same one logged twice) count
+   * once.
+   */
   matching: number;
   /** Distinct UTC days among the matching sightings. */
   days: string[];
@@ -26,21 +30,23 @@ export interface AnchorEvidence {
 }
 
 export function anchorEvidence(observations: Observation[], segs: Segment[], event: ObservedEvent): AnchorEvidence {
-  let matching = 0;
+  const starts = new Set<number>();
   let disagreeing = 0;
   const days = new Set<string>();
   for (const o of observations) {
-    if (o.event !== event || o.timing !== 'start') continue;
+    if (o.event !== event || o.timing !== 'start' || !isSeen(o)) continue;
     const t = Date.parse(o.at);
     const off = offsetFromSchedule(segs, t);
     if (off === null) continue;
     if (Math.abs(off) <= TIMING_TOLERANCE_MS) {
-      matching++;
-      days.add(o.at.slice(0, 10));
+      const start = t - off;
+      starts.add(start);
+      days.add(new Date(start).toISOString().slice(0, 10));
     } else {
       disagreeing++;
     }
   }
+  const matching = starts.size;
   const dayList = [...days].sort();
   return {
     matching,

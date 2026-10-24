@@ -7,25 +7,36 @@ your browser from rules kept in this repository; it does not depend on any other
 
 Live at https://radmagelabs.com/d4/
 
-![Diablo IV Tracker at 3:00 PM UTC: a Helltide just began with 55:00 left and its card glows, the World Boss spawns in 3 hours, the next Legion is in 20 minutes, with confidence badges, the schematic Sanctuary map, the sightings log, the coming-up timeline and the Season 15 panel](screenshots/dashboard.png)
+![Diablo IV Tracker at 10:00 AM UTC on a first visit: a Helltide just began with 55:00 left and its card glows; the World Boss spawns in an hour and brings a second one in an expansion region (Inferred); the next Legion is in 20 minutes; boss and places show as Unknown with the reason; confidence badges; the Sanctuary Event Radar with nothing lit, since no event's place is known yet on a first visit; the coming-up timeline, the empty sightings log and the Season 15 panel](screenshots/dashboard.png)
 
 ## What it shows
 
 - **Helltide.** Whether one is active (its card breathes while it is), the time left and when it
-  ends, the next start, and the three after that.
+  ends, the next start, and the three after that. Mark the region it is in (a base-game and an
+  expansion Helltide can run at once) and the card and the radar show it until that Helltide ends.
 - **World Boss.** A countdown to the next spawn, when the last one spawned, and the next three.
+  Every fourth spawn brings a second World Boss in an expansion region, and the card says so. Log
+  the boss and arena the game shows ahead of a spawn and the card shows them for that spawn.
 - **Legion.** A countdown to the next Legion event, when the last one started, and the next three.
 - **Coming up.** Every start in the next four hours in one list.
 - **Season.** The live season, when it started and how many days in it is, its end and the next
   season's start once Blizzard announces them, announced windows such as a PTR, and every past
   season with its dates and length.
-- **Sanctuary Atlas.** An original, stylized overview of the seven regions, with an illustration
-  for each region. Each region lists its waypoints, World Boss arena and Legion sites with their
-  sources, and a Helltide layer marks the regions that can host one. It is not a navigation map: a
-  place stays in the list by name until a source supports where to pin it.
+- **Sanctuary Event Radar.** The seven regions at a glance: a region with a Helltide on breathes
+  orange-red, the next World Boss is a gold dot with its boss and time (from 30 minutes before, or
+  15 or 60 as you choose), the next Legion a violet dot (from 10 minutes before). A marker pulses
+  only when its event is close. A region lights only when its event's place is known, the same as
+  on the cards: seen in game, or predicted by an order your sightings bear out (labeled Inferred).
+  Unlit means not known yet. On a phone the same events are written out under it, one line each.
+  Regions sit where published descriptions place them (a test checks each), but it is a regional
+  overview, not a navigation map.
+- **Places and chest spots** (a region's details, secondary): its waypoints, World Boss arena and
+  Legion sites with their sources, and the Helltide chest spots you log. Mark a chest active when
+  you see it and it shows as active until the chests move (players report about half an hour in)
+  or the Helltide ends; otherwise it says "not verified now", never "inactive".
 - **Sightings.** Log what you see in game (a spawn time, the boss, the arena, the Helltide region,
-  a chest spot). The tracker checks your times against its schedule and looks for repeating
-  rotations, and says when there is not enough data to tell.
+  a chest spot). The tracker checks your times against its schedule and tests for repeating
+  orders, and says when there is not enough data to tell.
 - **Reminders.** World Boss 15, 10 or 5 minutes before, Legion 5 minutes before, Helltide when it
   begins, in the page and, if you allow them, as system notifications.
 - **Tab title.** The next event's countdown (or a chosen event's) in the browser tab.
@@ -54,9 +65,18 @@ points are marked Inferred until our own in-game sightings confirm them: **at le
 starts that match the schedule, on at least two different (UTC) days, and none that disagree.** The
 data checks refuse a Confirmed start point without that, and the cards show the progress.
 
-Places and rotations are separate questions. One sighting confirms that a place exists and is used.
+Every fourth World Boss spawn (Unix time mod 50400 = 10800, every 14 hours) brings a second boss in
+an expansion region. That is Inferred: Blizzard does not document it, and every dated first-hand
+report of two at once on Blizzard's forums, from October 2024 to September 2026, falls on these
+spawns.
+
+Places and orders are separate questions. One sighting confirms that a place exists and is used.
 A repeating order of places or bosses is never Confirmed from sightings, however many: only
-Blizzard's own words could confirm it. Strong, repeated evidence can make it Inferred at most.
+Blizzard's own words could confirm it. An order found in sightings becomes Inferred only after it
+predicts later sightings: **at least three correct predictions, none wrong, on sightings it was not
+found in, with a lucky match under 1%** (judged against a guesser who knows how often each value
+has turned up). A sighting that breaks it withdraws it, and learning starts again from there, with
+a stricter bar each time. Only then does the card show a prediction, labeled as one.
 
 Announced changes are part of the data. Season 16 starts Helltides on the hour in base-game zones
 and on the half hour in expansion zones (3.3.0 PTR notes); once its date is announced, the new
@@ -65,10 +85,13 @@ schedule is added with that date and the switch happens on its own.
 ## What it does not know
 
 - **Which region has the Helltide**, **which World Boss and arena**, and **where the Legion is.**
-  No public source forecasts these; the game shows them shortly before or as they start. If a
-  rotation exists, logged sightings can establish it over time.
-- **Where the active mystery chests are.** Logged sightings build a list of places chests have
-  been seen, not where they are right now.
+  No source, Blizzard's or a player's, documents an order for any of them, and first-hand reports
+  contradict the World Boss order other trackers use (the same spawn time a week apart, inside
+  one patch, brought different bosses). The game shows them shortly before or as they start: log
+  them and the cards show them. If an order exists, logged sightings will find it.
+- **Which chests are active right now.** Chest spots are a fixed set in each Helltide zone and the
+  active ones move during a Helltide, by players' reports. Only someone in that Helltide can say
+  which are active; a region's details keep the spots you log and let you mark the active ones.
 
 ## Time and clocks
 
@@ -98,14 +121,18 @@ Reminders come from this page's own timers, so:
 ## Sightings
 
 **Log a sighting** records the event, the start time from the game (or "already running"), the
-region, place and boss, in your browser only. **Export** saves them as a JSON file; **Import**
-merges a file back and skips duplicates. Sightings added to `data/observations.json` in this
-repository are loaded for everyone.
+region, place, boss or chest type, the realm and Hardcore, and whether you saw it yourself or
+someone told you, in your browser only. What someone told you is shown as reported and never used
+as evidence. **Export** saves them as a JSON file (version 2; version 1 files still import);
+**Import** merges a file back, skips duplicates and refuses records it cannot read. Sightings added
+to `data/observations.json` in this repository are loaded for everyone. Orders someone describes
+can be added to `data/rotations.json` to be tested; they show only once later sightings bear them
+out.
 
 The analysis is deliberately cautious. A start time more than 2 minutes from the schedule is
-flagged. A rotation is tested only when every position in a cycle has been seen at least twice,
-reported only when chance would rarely fit that well, and described as "consistent so far", never
-as proven.
+flagged. An order is looked for only when every position in a cycle has been seen at least twice,
+and counts only after it predicts later sightings, as above. Sightings from before the current
+season are not used, and a known upcoming season start ends any prediction.
 
 ## Running it without a web server
 
@@ -131,15 +158,20 @@ with a shifted clock and checks: the Helltide rollover, other time zones and a z
 open, the clock correction, sleep and wake, a system clock jump, reminders with notifications
 allowed, the breathing card and reduced motion, the tab title, logging, exporting and importing
 sightings, the settings, compact and pop-out views, the phone layout, opening the file from disk,
+the World Boss double spawn, a logged boss and a marked Helltide region showing until their event
+ends, the event radar (the right regions lit, two Helltides at once, lead-up windows, pulses only
+near the event, expiry, the same story as the cards, reduced motion, phone and compact), chest
+spots marked active, expiring and placed on the drawing, realms kept apart, a hostile import file,
 and that no request leaves the site. `-- --shots DIR` saves screenshots.
 
 Layout:
 
 ```
-data/          the tracker's own data: events, seasons, locations, shared sightings (JSON)
+data/          the tracker's own data: events, seasons, locations, orders to test, shared sightings (JSON)
 src/data/      the data's types and checks (a bad edit fails the build) and loader
-src/engine/    schedules, event state, seasons, clock check, reminders, sightings analysis, title
-src/adapters/  where data comes from: local schedules; details stay unknown until a source exists
+src/engine/    schedules, event state, seasons, clock check, reminders, sightings analysis, order
+               predictions, chest spots, title
+src/adapters/  where data comes from: local schedules; details from sightings and tested orders
 src/ui/        cards, timeline, season panel, map, sightings, settings, notifications
 src/store/     preferences and sightings in localStorage (key prefix d4-tracker:v1:)
 tests/         unit tests, fixtures and the browser smoke test
@@ -154,7 +186,10 @@ long ago it was checked and flags anything older than 60 days. After a patch or 
 - `data/events.json`: close a schedule with `until` and add the next one with `from` when a timing
   change goes live.
 - `data/locations.json`: add waypoints, arenas, Legion sites or chest spots, marked Confirmed only
-  with a Blizzard quote or our own sighting.
+  with a Blizzard quote or our own sighting (a chest spot only with our own sighting).
+- `data/rotations.json`: register an order someone describes, with its source and the day it was
+  added; only sightings after that day test it. Add a reset when a patch is known to restart an
+  order.
 
 `npm test` checks every file: confirmed claims need a Blizzard source (with its quoted words) or
 our own observation, dates must be UTC instants, schedules must not overlap, season times must fall

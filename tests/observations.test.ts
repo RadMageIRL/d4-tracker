@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  cleanObservation, FILE_FORMAT, merge, MIN_REPEATS, MIN_RULED_OUT, MAX_CHANCE, newId, offsetFromSchedule, parseFile,
+  cleanObservation, FILE_FORMAT, FILE_VERSION, isSeen, merge, MIN_REPEATS, MIN_RULED_OUT, MAX_CHANCE, newId, offsetFromSchedule, parseFile,
   rotationCheck, timingCheck, toFile, TIMING_TOLERANCE_MS, type Observation,
 } from '../src/engine/observations';
 import { always } from '../src/engine/segments';
@@ -47,6 +47,52 @@ describe('cleaning records', () => {
   });
 });
 
+describe('version 2 fields', () => {
+  const base = { id: 'v2', event: 'helltideChest', at: '2026-10-24T15:05:00Z', timing: 'during', recordedAt: '2026-10-24T15:05:00Z', region: 'kehjistan', place: 'Gate' };
+
+  it('keeps a secondhand report, realm, hardcore, chest type and a placement (rounded)', () => {
+    const o = cleanObservation({ ...base, provenance: 'reported', realm: 'eternal', hardcore: true, chest: 'mystery', pos: { art: 'kehjistan:0123abcd', x: 0.123456, y: 1 } })!;
+    expect(o).toMatchObject({ provenance: 'reported', realm: 'eternal', hardcore: true, chest: 'mystery', pos: { art: 'kehjistan:0123abcd', x: 0.1235, y: 1 } });
+    expect(isSeen(o)).toBe(false);
+  });
+
+  it('keeps a third-party source apart from in-game verification: the source alone is never evidence', () => {
+    const predicted = cleanObservation({ ...base, provenance: 'reported', thirdParty: 'a tracker page, screenshot 09:11' })!;
+    expect(predicted.thirdParty).toBe('a tracker page, screenshot 09:11');
+    expect(isSeen(predicted)).toBe(false);
+    const checked = cleanObservation({ ...base, thirdParty: 'a tracker page, screenshot 09:11' })!;
+    expect(isSeen(checked)).toBe(true);
+  });
+
+  it('treats any provenance other than "reported" as seen, and drops a realm or hardcore value it does not know', () => {
+    const o = cleanObservation({ ...base, provenance: 'heard', realm: 'ladder', hardcore: 'yes' })!;
+    expect(o.provenance).toBeUndefined();
+    expect(isSeen(o)).toBe(true);
+    expect(o.realm).toBeUndefined();
+    expect(o.hardcore).toBeUndefined();
+  });
+
+  it('refuses a record with a malformed chest type or a placement off the drawing', () => {
+    expect(cleanObservation({ ...base, chest: 'Mystery<>' })).toBeNull();
+    expect(cleanObservation({ ...base, pos: { art: 'kehjistan:0123abcd', x: 1.5, y: 0.5 } })).toBeNull();
+    expect(cleanObservation({ ...base, pos: { art: '../evil', x: 0.5, y: 0.5 } })).toBeNull();
+    expect(cleanObservation({ ...base, pos: 'here' })).toBeNull();
+  });
+
+  it('copies only the fields it knows, so extra keys in a file cannot reach the app', () => {
+    const raw = JSON.parse(`{"id":"v2","event":"legion","at":"2026-10-24T02:00:00Z","timing":"start","recordedAt":"2026-10-24T02:00:00Z","__proto__":{"polluted":true},"onclick":"x"}`);
+    const o = cleanObservation(raw)!;
+    expect(Object.keys(o).sort()).toEqual(['at', 'event', 'id', 'recordedAt', 'timing']);
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+  });
+
+  it('keeps markup in text fields as plain text, cut to 120 characters', () => {
+    const o = cleanObservation({ ...base, place: `<img src=x onerror=alert(1)>${'x'.repeat(200)}` })!;
+    expect(o.place!.startsWith('<img src=x')).toBe(true);
+    expect(o.place).toHaveLength(120);
+  });
+});
+
 describe('files', () => {
   it('round-trips an export', () => {
     const list = [obs({ event: 'worldBoss', at: spawn(0), boss: 'Ashava' })];
@@ -58,6 +104,15 @@ describe('files', () => {
   it('counts unreadable records instead of failing the whole file', () => {
     const file = { format: FILE_FORMAT, version: 1, exportedAt: '2026-10-25T00:00:00Z', observations: [obs({ event: 'legion', at: spawn(0) }), { nope: 1 }] };
     expect(parseFile(JSON.stringify(file))).toMatchObject({ rejected: 1 });
+  });
+
+  it('reads a version 1 file (every record counts as seen) and writes version 2', () => {
+    const v1 = { format: FILE_FORMAT, version: 1, exportedAt: '2026-10-23T00:00:00Z', observations: [obs({ event: 'worldBoss', at: spawn(0), boss: 'Ashava' })] };
+    const parsed = parseFile(JSON.stringify(v1));
+    expect(parsed.observations).toHaveLength(1);
+    expect(isSeen(parsed.observations[0]!)).toBe(true);
+    expect(FILE_VERSION).toBe(2);
+    expect(toFile([], 0).version).toBe(2);
   });
 
   it('refuses something that is not a sightings file, or is from a newer version', () => {
@@ -74,6 +129,15 @@ describe('files', () => {
     expect(r.added).toBe(1);
     expect(r.duplicates).toBe(2);
     expect(r.merged.map((o) => o.boss)).toEqual(['Ashava', 'Avarice']);
+  });
+
+  it('keeps a chest marked active and the same chest placed on the map in the same minute', () => {
+    const base = { event: 'helltideChest' as const, at: '2026-10-24T15:10:00.000Z', region: 'kehjistan', place: 'Gate', chest: 'mystery' };
+    const mark = obs({ ...base, timing: 'during' });
+    const placed = obs({ ...base, at: '2026-10-24T15:10:20.000Z', timing: 'none', pos: { art: 'kehjistan:0123abcd', x: 0.4, y: 0.5 } });
+    const r = merge([], [mark, placed]);
+    expect(r.added).toBe(2);
+    expect(r.duplicates).toBe(0);
   });
 });
 

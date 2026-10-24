@@ -82,7 +82,7 @@ export async function launchChrome() {
     async newPage() {
       const { targetId } = await conn.send('Target.createTarget', { url: 'about:blank' });
       const { sessionId } = await conn.send('Target.attachToTarget', { targetId, flatten: true });
-      return makePage(conn, sessionId);
+      return makePage(conn, sessionId, targetId);
     },
     async close() {
       try { await Promise.race([conn.send('Browser.close'), sleep(3000)]); } catch (e) { /* already gone */ }
@@ -98,7 +98,7 @@ export async function launchChrome() {
   };
 }
 
-async function makePage(conn, sessionId) {
+async function makePage(conn, sessionId, targetId) {
   const send = (method, params) => conn.send(method, params, sessionId);
   const problems = [], requests = [];
   conn.listeners.push((msg) => {
@@ -180,6 +180,8 @@ async function makePage(conn, sessionId) {
       const { data } = await send('Page.captureScreenshot', params);
       writeFileSync(file, Buffer.from(data, 'base64'));
     },
+    // Close the tab: a background tab left open gets throttled timers and can slow later checks.
+    async close() { await conn.send('Target.closeTarget', { targetId }); },
   };
   return page;
 }

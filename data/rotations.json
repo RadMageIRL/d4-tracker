@@ -1,0 +1,21 @@
+{
+  "checkedOn": "2026-10-24",
+  "rules": [
+    {
+      "id": "trackers-8-spawn-pairs",
+      "event": "worldBoss",
+      "field": "boss",
+      "sequence": ["Wandering Death", "Wandering Death", "Avarice", "Avarice", "Ashava", "Ashava", "Azmodan", "Azmodan"],
+      "anchor": null,
+      "registeredOn": "2026-10-24",
+      "basis": "the 8-spawn order other trackers publish; first-hand reports show its place in the order shifting every few days",
+      "sources": [
+        {
+          "kind": "community",
+          "title": "The World Boss order two community trackers published (read 2026-10-23 and 2026-10-24), registered to be tested, not used. Dated first-hand Blizzard forum reports since December 2025 fit one place in it for two days at most."
+        }
+      ]
+    }
+  ],
+  "resets": []
+}

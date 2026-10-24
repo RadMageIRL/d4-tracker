@@ -12,7 +12,14 @@ const KEY = 'prefs';
 export type Theme = 'dark' | 'light';
 export type ZoneChoice = 'local' | 'utc';
 export type CardId = 'helltide' | 'worldBoss' | 'legion' | 'map' | 'season' | 'sightings';
-export type LayerId = 'regions' | 'worldBoss' | 'legion' | 'waypoint' | 'helltide';
+export type LayerId = 'regions' | 'worldBoss' | 'legion' | 'waypoint' | 'helltide' | 'chests';
+export type ConfidenceId = 'confirmed' | 'inferred' | 'unknown';
+/** Any: chest marks from both realms count; otherwise only that realm's (and those with none noted). */
+export type RealmChoice = 'any' | 'seasonal' | 'eternal';
+export type RadarId = 'helltide' | 'worldBoss' | 'legion';
+export const RADAR_IDS: RadarId[] = ['helltide', 'worldBoss', 'legion'];
+/** How many minutes before a spawn the event radar shows it. */
+export const RADAR_LEADS = { worldBoss: [15, 30, 60], legion: [5, 10, 15] } as const;
 
 /** The lead times offered for each event, in minutes (0 = when it starts). */
 export const REMINDER_CHOICES = {
@@ -34,15 +41,24 @@ export interface Prefs {
   systemNotifications: boolean;
   /** What the browser tab title counts down to. */
   title: TitleChoice;
+  /** Which confidence levels the atlas shows. */
+  confidences: Record<ConfidenceId, boolean>;
+  /** The realm the player plays: chest marks from the other realm are not shown as active. */
+  realm: RealmChoice;
+  /** Which events the event radar shows. */
+  radar: Record<RadarId, boolean>;
+  /** Minutes before a spawn its radar marker appears. */
+  radarLead: { worldBoss: number; legion: number };
 }
 
 export const CARD_IDS: CardId[] = ['helltide', 'worldBoss', 'legion', 'map', 'season', 'sightings'];
-export const LAYER_IDS: LayerId[] = ['regions', 'worldBoss', 'legion', 'waypoint', 'helltide'];
+export const LAYER_IDS: LayerId[] = ['regions', 'worldBoss', 'legion', 'waypoint', 'helltide', 'chests'];
+export const CONFIDENCE_IDS: ConfidenceId[] = ['confirmed', 'inferred', 'unknown'];
 
 export function defaultPrefs(): Prefs {
   return {
     cards: { helltide: true, worldBoss: true, legion: true, map: true, season: true, sightings: true },
-    layers: { regions: true, worldBoss: true, legion: true, waypoint: true, helltide: true },
+    layers: { regions: true, worldBoss: true, legion: true, waypoint: true, helltide: true, chests: true },
     compact: false,
     theme: 'dark',
     clock: 'auto',
@@ -50,6 +66,10 @@ export function defaultPrefs(): Prefs {
     reminders: { worldBoss: [], legion: [], helltide: [] },
     systemNotifications: false,
     title: 'next',
+    confidences: { confirmed: true, inferred: true, unknown: true },
+    realm: 'any',
+    radar: { helltide: true, worldBoss: true, legion: true },
+    radarLead: { worldBoss: 30, legion: 10 },
   };
 }
 
@@ -78,6 +98,10 @@ export function sanitize(raw: unknown): Prefs {
   const cards = isRecord(raw.cards) ? raw.cards : {};
   const layers = isRecord(raw.layers) ? raw.layers : {};
   const rem = isRecord(raw.reminders) ? raw.reminders : {};
+  const conf = isRecord(raw.confidences) ? raw.confidences : {};
+  const radar = isRecord(raw.radar) ? raw.radar : {};
+  const lead = isRecord(raw.radarLead) ? raw.radarLead : {};
+  const pickLead = (v: unknown, allowed: readonly number[], fallback: number) => (typeof v === 'number' && allowed.includes(v) ? v : fallback);
   return {
     cards: Object.fromEntries(CARD_IDS.map((id) => [id, pickBool(cards[id], d.cards[id])])) as Prefs['cards'],
     layers: Object.fromEntries(LAYER_IDS.map((id) => [id, pickBool(layers[id], d.layers[id])])) as Prefs['layers'],
@@ -92,6 +116,13 @@ export function sanitize(raw: unknown): Prefs {
     },
     systemNotifications: pickBool(raw.systemNotifications, d.systemNotifications),
     title: pickOne(raw.title, TITLE_CHOICES, d.title),
+    confidences: Object.fromEntries(CONFIDENCE_IDS.map((id) => [id, pickBool(conf[id], d.confidences[id])])) as Prefs['confidences'],
+    realm: pickOne(raw.realm, ['any', 'seasonal', 'eternal'] as const, d.realm),
+    radar: Object.fromEntries(RADAR_IDS.map((id) => [id, pickBool(radar[id], d.radar[id])])) as Prefs['radar'],
+    radarLead: {
+      worldBoss: pickLead(lead.worldBoss, RADAR_LEADS.worldBoss, d.radarLead.worldBoss),
+      legion: pickLead(lead.legion, RADAR_LEADS.legion, d.radarLead.legion),
+    },
   };
 }
 

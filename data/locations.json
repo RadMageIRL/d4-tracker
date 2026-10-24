@@ -77,6 +77,11 @@
     { "region": "fractured_peaks", "name": "Kor Dragan", "confidence": "inferred", "note": "In the northwest of the region.", "sources": ["community-legion"] },
     { "region": "nahantu", "name": "Basin of Souls", "confidence": "inferred", "note": "Nahantu's Legion is an escort: an orb is guarded on its way to the Basin of Souls and back.", "sources": ["community-legion"] }
   ],
+  "chestTypes": [
+    {"id": "mystery", "name": "Tortured Gift of Mysteries", "confidence": "confirmed", "relocatesAtMinutes": [30], "note": "The orange \"?\" chest: 250 Aberrant Cinders in Torment, 75 below it. Players in 2026 report two per Helltide, one in each part of it, moving to another spot about half an hour in (community reports, not documented by Blizzard), so a mark lasts until then.", "sources": ["blizzard-1.1.0a-mysteries", "community-chests"]},
+    {"id": "hells-prize", "name": "Hell's Prize", "confidence": "confirmed", "relocatesAtMinutes": [], "note": "The \"!\" chest from the Lord of Hatred War Plans Helltide node: 666 Aberrant Cinders. Shown on the map only with that node chosen; how often it appears is unclear.", "sources": ["blizzard-3.0.2-hells-prize", "community-chests"]},
+    {"id": "tortured-gift", "name": "Other Tortured Gift (armor, jewelry, weapons)", "confidence": "confirmed", "relocatesAtMinutes": [30], "note": "The Torment gifts named for what they drop (for example Tortured Gift of Amulets), 75 to 150 Aberrant Cinders. Players report chests moving about half an hour in.", "sources": ["blizzard-1.4.4-amulets", "community-chests"]}
+  ],
   "helltideChests": [],
   "sources": {
     "blizzard-1.2.0-waypoints": {
@@ -115,6 +120,28 @@
       "url": "https://news.blizzard.com/en-us/article/24302578/the-3-3-0-ptr-what-you-need-to-know",
       "quote": "Helltides now start on the hour for base game zones and on the 30 minute mark in expansion zones"
     },
+    "blizzard-1.1.0a-mysteries": {
+      "kind": "blizzard",
+      "title": "Diablo IV patch 1.1.0a notes (2023-07-18)",
+      "url": "https://news.blizzard.com/en-us/article/24092662/diablo-iv-patch-notes-1-0-1-2",
+      "quote": "The Tortured Gift of Mysteries chest has had its cost increased to 250 Aberrant Cinders from 175."
+    },
+    "blizzard-1.4.4-amulets": {
+      "kind": "blizzard",
+      "title": "Diablo IV patch 1.4.4 notes (2024-07-10)",
+      "url": "https://news.blizzard.com/en-us/article/24140806/diablo-iv-patch-notes-1-3-1-5",
+      "quote": "Fixed an issue where the Tortured Gift of Amulets in Helltide didn't grant as many items as intended."
+    },
+    "blizzard-3.0.2-hells-prize": {
+      "kind": "blizzard",
+      "title": "Diablo IV patch 3.0.2 notes (2026-05-13)",
+      "url": "https://news.blizzard.com/en-us/article/24271857/diablo-iv-patch-notes-3-0",
+      "quote": "Fixed an issue where Hell's Prize did not properly affect Bloodseeker loot drops if the player also had Bound by Blood."
+    },
+    "community-chests": {
+      "kind": "community",
+      "title": "Guides and first-hand Blizzard forum reports on Helltide chests, 2024 to 2026 (research 2026-10-24); not documented by Blizzard"
+    },
     "community-arenas": {
       "kind": "community",
       "title": "A community World Boss guide's arena list (research 2026-10-23); not confirmed by Blizzard or in game"
@@ -125,7 +152,7 @@
     },
     "community-research": {
       "kind": "community",
-      "title": "Community guides read for research on 2026-10-23 (see docs/RESEARCH.md)"
+      "title": "Community guides (2026), read for research on 2026-10-23; not documented by Blizzard"
     }
   }
 }

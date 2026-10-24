@@ -86,6 +86,22 @@ async function open(at, { prefs, timezone, width = 1440, height = 900, mobile = 
 }
 
 const text = (sel) => `(document.querySelector(${JSON.stringify(sel)})?.textContent ?? '')`;
+/** Select a region on the radar (its events), then open its places and chest spots. */
+async function openPlaces(page, name) {
+  await page.eval(`[...document.querySelectorAll('.atlas-region')].find(x => x.getAttribute('aria-label').startsWith('${name}')).dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
+  await page.eval(`[...document.querySelectorAll('.map-info button')].find(b => b.textContent === 'Places and chest spots').click()`);
+}
+// The shared sightings in data/ grow as real ones are added, so expectations are computed from them.
+const SHARED = JSON.parse(readFileSync(new URL('../data/observations.json', import.meta.url), 'utf8')).observations;
+const sharedStarts = (event) => SHARED.filter((o) => o.event === event && o.timing === 'start' && o.provenance !== 'reported')
+  .map((o) => new Date(o.at).toISOString());
+/** The card's progress line toward confirming a start time, for these matched starts (distinct, by day). */
+function progressText(starts) {
+  const s = new Set(starts);
+  const days = new Set([...s].map((x) => x.slice(0, 10)));
+  return `${Math.min(s.size, 3)} of 3 matching in-game starts, on ${Math.min(days.size, 2)} of 2 days`;
+}
+const wbBlock = text('#sightings-panel .sight-summary > div:first-child');
 const card = (kind, sel) => text(`.event[data-kind="${kind}"] ${sel}`);
 
 try {
@@ -115,8 +131,8 @@ try {
     check('each Unknown has a short hint and its full reason on hover', rows.every((r) => r.hint.startsWith(' · ') && r.reason.length > 30), JSON.stringify(rows));
     check('each Unknown takes one line', rows.every((r) => r.height <= r.line * 1.2), JSON.stringify(rows.map((r) => [r.height, r.line])));
     const about = await page.eval(`document.querySelector('.event[data-kind="worldBoss"] details.about').textContent`);
-    check('the full reasons and rotation notes are under About', about.includes('trackers that guess disagree') && about.includes('Boss order (unknown)'), about.slice(0, 300));
-    check('an inferred start time shows what confirms it', about.includes('0 of 3 matching in-game starts, on 0 of 2 days'), about.slice(0, 400));
+    check('the full reasons and order notes are under About', about.includes('contradicted by first-hand reports') && about.includes('Boss order: Unknown'), about.slice(0, 300));
+    check('an inferred start time shows what confirms it', about.includes(progressText(sharedStarts('worldBoss'))), about.slice(0, 400));
     const link = await page.eval(`[...document.querySelectorAll('footer a')].map(a => a.href)`);
     check('footer links to radmagelabs.com', link.includes('https://radmagelabs.com/'), JSON.stringify(link));
     await page.waitFor("document.querySelector('#clock-sub').textContent.includes('UTC')");
@@ -303,13 +319,14 @@ try {
     await sleep(300);
     const status = await page.eval(text('#sightings-panel .status-line'));
     check('logging a sighting confirms it', /Logged: World Boss at 6:00\s?PM/.test(status), status);
-    const summary = await page.eval(text('#sightings-panel .sight-summary'));
-    check('a sighting on the schedule agrees', summary.includes('Start times: 1 of 1 agree with the schedule.'), summary.slice(0, 200));
+    const n = sharedStarts('worldBoss').length + 1;
+    const summary = await page.eval(wbBlock);
+    check('a sighting on the schedule agrees', summary.includes(`Start times: ${n} of ${n} agree with the schedule.`), summary.slice(0, 200));
     const about = await page.eval(`document.querySelector('.event[data-kind="worldBoss"] details.about').textContent`);
-    check('the card reports the sighting', about.includes('Your sightings: 1 of 1 agree'), about.slice(-200));
+    check('the card reports the sighting', about.includes(`Your sightings: ${n} of ${n} agree`), about.slice(-200));
     await page.reload();
     await page.waitFor("document.querySelector('.event .big').textContent !== '--:--'");
-    check('sightings survive a reload', (await page.eval(text('#sightings-panel .sight-summary'))).includes('1 of 1 agree'));
+    check('sightings survive a reload', (await page.eval(wbBlock)).includes(`${n} of ${n} agree`));
     const fixture = fileURLToPath(new URL('./fixtures/sightings-import.json', import.meta.url));
     await page.setFiles('#sightings-panel input[type=file]', [fixture]);
     await page.waitFor(`${text('#sightings-panel .status-line')}.startsWith('Imported')`, 4000).catch(() => {});
@@ -317,10 +334,11 @@ try {
     check('importing a file adds its sightings', first.startsWith('Imported 2, skipped 0'), first);
     const flagged = await page.eval(text('#sightings-panel .sight-summary'));
     check('a sighting 11 minutes off the schedule is flagged', flagged.includes('11 min after the nearest calculated start'), flagged.slice(0, 400));
-    check('progress toward confirming the World Boss start time is shown (2 starts, one day)',
-      flagged.includes('Start time confirmation: 2 of 3 matching in-game starts, on 1 of 2 days'), flagged.slice(0, 500));
+    const expected = progressText([...sharedStarts('worldBoss'), '2026-10-24T18:00:00.000Z', '2026-10-24T14:30:00.000Z']);
+    check('progress toward confirming the World Boss start time is shown (distinct starts, by day)',
+      flagged.includes(`Start time confirmation: ${expected}`), `${expected} / ${flagged.slice(0, 500)}`);
     check('places seen are listed as existing, apart from any order',
-      flagged.includes('Places seen in game (each sighting confirms the place exists): Saraan Caldera (1), Caen Adar (1)'), flagged.slice(0, 600));
+      ['Places seen in game (each sighting confirms the place exists): ', 'Saraan Caldera (1)', 'Caen Adar (1)'].every((s) => flagged.includes(s)), flagged.slice(0, 600));
     await page.setFiles('#sightings-panel input[type=file]', [fixture]);
     await page.waitFor(`${text('#sightings-panel .status-line')}.includes('skipped 2')`, 4000).catch(() => {});
     const second = await page.eval(text('#sightings-panel .status-line'));
@@ -410,13 +428,215 @@ try {
     check('no horizontal scroll at 390 px', overflow <= 0, `overflow ${overflow}px`);
     const vb = await page.eval("document.querySelector('.map-svg').getAttribute('viewBox')");
     check('phone atlas uses a scalable overview', vb === '0 0 760 430', vb);
-    await page.eval("[...document.querySelectorAll('.atlas-region')].find(x => x.getAttribute('aria-label').startsWith('Fractured Peaks')).dispatchEvent(new MouseEvent('click', { bubbles: true }))");
-    check('phone can open a regional atlas', await page.eval("document.querySelector('.regional-art') !== null"));
+    await openPlaces(page, 'Fractured Peaks');
+    check('phone can open a region\'s places and chest spots', await page.eval("document.querySelector('.regional-art') !== null"));
     await page.eval("document.querySelector('.atlas-back').click()");
     check('regional atlas return restores overview', await page.eval("document.querySelector('.atlas-overview') !== null"));
     await page.eval("[...document.querySelectorAll('.layers label')].find(x => x.textContent.includes('Waypoints')).querySelector('input').click()");
     check('marker layer toggles persist through region view', await page.eval("JSON.parse(localStorage.getItem('d4-tracker:v1:prefs')).layers.waypoint === false"));
     if (shots) await page.screenshot(join(shots, 'phone.png'), true);
+  }
+
+  // 8. v0.4: what was seen, the World Boss double spawn, Helltide regions and chest spots.
+  const seed = (list) => `localStorage.setItem('d4-tracker:v1:observations', ${JSON.stringify(JSON.stringify(list))});`;
+  const row = (kind, label) => `([...document.querySelectorAll('.event[data-kind="${kind}"] .facts dt')].find(d => d.textContent === '${label}')?.nextElementSibling?.textContent ?? '')`;
+  const advance = (page, ms) => page.eval(`(() => { const prev = Date.now; Date.now = () => prev() + ${ms}; })()`);
+
+  // 8a. Every fourth World Boss brings a second one in an expansion region (11:00 UTC on the 24th is one).
+  {
+    const page = await open('2026-10-24T09:00:00Z', { timezone: 'UTC', before: "localStorage.removeItem('d4-tracker:v1:observations')" });
+    const also = await page.eval(row('worldBoss', 'Also'));
+    // Shown, not just present in the page: the line is hidden on ordinary spawns.
+    const alsoShown = await page.eval(`(() => { const dt = [...document.querySelectorAll('.event[data-kind="worldBoss"] .facts dt')].find(d => d.textContent === 'Also');
+      return !!dt && dt.offsetParent !== null && dt.nextElementSibling.offsetParent !== null; })()`);
+    check('a double-spawn World Boss says a second one comes, as Inferred', alsoShown && also.includes('a second World Boss in an expansion region') && also.includes('Inferred'), also);
+    check('the timeline marks the double spawn', (await page.eval(text('#timeline-panel'))).includes('World Boss spawns (two)'));
+    const plain = await open('2026-10-24T05:00:00Z', { timezone: 'UTC', before: "localStorage.removeItem('d4-tracker:v1:observations')" });
+    check('an ordinary World Boss hides the Also line', await plain.eval(`[...document.querySelectorAll('.event[data-kind="worldBoss"] .facts dt')].find(d => d.textContent === 'Also').hidden`));
+    if (shots) await page.screenshot(join(shots, 'v04-dashboard.png'), { height: 560 });
+    await page.close();
+    await plain.close();
+  }
+
+  // 8b. A boss logged for a spawn shows on the card as seen until that spawn is over, then on the Last line.
+  {
+    // On the 26th, away from the real shared sightings: 08:30 and the next spawn at 12:00 UTC.
+    const list = [{ id: 'wb1', event: 'worldBoss', at: '2026-10-26T08:30:00Z', timing: 'start', boss: 'Ashava', place: 'Caen Adar', region: 'scosglen', recordedAt: '2026-10-26T07:35:00Z' }];
+    const page = await open('2026-10-26T07:50:00Z', { timezone: 'UTC', before: seed(list) });
+    const boss = await page.eval(row('worldBoss', 'Boss'));
+    check('a boss you logged for this spawn shows as seen', boss.startsWith('Ashava') && boss.includes('seen in game'), boss);
+    check('its arena shows as seen', (await page.eval(row('worldBoss', 'Location'))).startsWith('Caen Adar'));
+    await advance(page, 45 * 60000);
+    await page.waitFor(`${row('worldBoss', 'Boss')}.startsWith('Unknown')`, 4000).catch(() => {});
+    check('after the spawn the next one is Unknown again', (await page.eval(row('worldBoss', 'Boss'))).startsWith('Unknown'));
+    check('the Last line keeps what was seen', (await page.eval(row('worldBoss', 'Last'))).includes('Ashava, Caen Adar, Scosglen (seen)'), await page.eval(row('worldBoss', 'Last')));
+    await page.close();
+    const told = await open('2026-10-26T07:50:00Z', { timezone: 'UTC', before: seed([{ ...list[0], id: 'wb2', provenance: 'reported' }]) });
+    const reported = await told.eval(row('worldBoss', 'Boss'));
+    check('a secondhand report stays Unknown with a "reported, not checked" note, never shown as seen', reported.startsWith('Unknown') && reported.includes('reported: Ashava, not checked') && !reported.includes('seen in game'), reported);
+    check('no prediction is shown without a tested order', !(await told.eval(text('.event[data-kind="worldBoss"]'))).includes('predicted'));
+    await told.close();
+  }
+
+  // 8c. Marking the Helltide region: on the card and the atlas until that Helltide ends.
+  {
+    const page = await open('2026-10-24T15:10:00Z', { timezone: 'UTC', before: "localStorage.removeItem('d4-tracker:v1:observations')" });
+    await page.eval(`document.querySelector('.event[data-kind="helltide"] .log-link').click()`);
+    check('the Helltide card opens the form as already running', (await page.eval("document.getElementById('sight-event').value + '/' + document.getElementById('sight-timing').value")) === 'helltide/during');
+    await page.eval(`(() => { const r = document.getElementById('sight-region'); r.value = 'hawezar'; document.querySelector('#sighting-dialog form').requestSubmit(); })()`);
+    await sleep(300);
+    check('the region you marked shows on the Helltide card as seen', (await page.eval(row('helltide', 'Region'))).startsWith('Hawezar · seen in game'), await page.eval(row('helltide', 'Region')));
+    check('the radar lights that region', await page.eval("document.querySelector('.atlas-region.hawezar').classList.contains('radar-helltide')"));
+    await advance(page, 50 * 60000);
+    await page.waitFor(`${row('helltide', 'Region')}.startsWith('Unknown')`, 4000).catch(() => {});
+    check('the mark expires when the Helltide ends', (await page.eval(row('helltide', 'Region'))).startsWith('Unknown'));
+    check('and the radar light goes out with it', !(await page.eval("document.querySelector('.atlas-region.hawezar').classList.contains('radar-helltide')")));
+    await page.close();
+  }
+
+  // 8d. Chest spots: listed, marked active, expiring when chests move, placed on the drawing, filtered.
+  {
+    const spot = { id: 'ch1', event: 'helltideChest', at: '2026-10-23T12:00:00Z', timing: 'none', region: 'fractured_peaks', place: 'Sarkova Pass, by the cellar', chest: 'mystery', recordedAt: '2026-10-23T12:00:00Z' };
+    const page = await open('2026-10-24T15:10:00Z', { timezone: 'UTC', before: seed([spot]) });
+    const openRegion = (name) => openPlaces(page, name);
+    check('the radar overview stays free of chest counts', !(await page.eval(text('.atlas-overview'))).includes('chest spot'));
+    await openRegion('Fractured Peaks');
+    const chestRow = `([...document.querySelectorAll('.chest-list li')].find(li => li.textContent.includes('Sarkova Pass'))?.textContent ?? '')`;
+    check('a spot you logged is listed in its region, not verified now', (await page.eval(chestRow)).includes('Not verified now'), await page.eval(chestRow));
+    check('without a placement it has no pin', (await page.eval("document.querySelectorAll('.regional-art .pin').length")) === 0);
+    await page.eval(`[...document.querySelectorAll('.chest-list li')].find(li => li.textContent.includes('Sarkova Pass')).querySelector('button.small').click()`);
+    await sleep(200);
+    check('Mark active now makes it active until the chests move at :30', /Active: you saw it at 3:1\d\s?PM, until about 3:30\s?PM/.test(await page.eval(chestRow)), await page.eval(chestRow));
+    // Place it: start placing, then click the drawing 40% across and halfway down.
+    await page.eval(`[...document.querySelectorAll('.chest-list li')].find(li => li.textContent.includes('Sarkova Pass')).querySelectorAll('button.small')[1].click()`);
+    await page.eval(`(() => { const el = document.querySelector('.regional-art'); const r = el.getBoundingClientRect();
+      el.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: r.left + r.width * 0.4, clientY: r.top + r.height * 0.5 })); })()`);
+    await sleep(200);
+    const pin = await page.eval(`(() => { const p = document.querySelector('.regional-art .pin.chest.active'); return p ? [parseFloat(p.style.left), parseFloat(p.style.top)] : null; })()`);
+    check('placing a spot puts an active pin where you clicked', !!pin && Math.abs(pin[0] - 40) < 1 && Math.abs(pin[1] - 50) < 1, JSON.stringify(pin));
+    const stored = JSON.parse(await page.eval("localStorage.getItem('d4-tracker:v1:observations')"));
+    check('the placement is saved with the drawing it was made on', stored.some((o) => o.pos && /^fractured_peaks:[0-9a-f]{8}$/.test(o.pos.art)), JSON.stringify(stored.map((o) => o.pos)));
+    await page.eval(`document.querySelector('.regional-art .pin.chest')?.click()`);
+    const detail = await page.eval(text('.map-info'));
+    check('clicking a pin shows where the spot came from and its status', detail.includes('From your own sightings only (3 so far)') && detail.includes('Placed on this drawing'), detail.slice(0, 300));
+    await page.eval(`[...document.querySelectorAll('.map-info button.link')].find(b => b.textContent.startsWith('Back to')).click()`);
+    await page.eval(`[...document.querySelectorAll('.conf-filter label')].find(l => l.textContent === 'Confirmed').querySelector('input').click()`);
+    await sleep(100);
+    check('hiding Confirmed hides your confirmed spot', (await page.eval(chestRow)) === '' && (await page.eval("document.querySelectorAll('.regional-art .pin.chest').length")) === 0);
+    check('and leaves the Inferred places listed', (await page.eval(text('.atlas-location-list'))).includes('World Boss arena'));
+    await page.eval(`[...document.querySelectorAll('.conf-filter label')].find(l => l.textContent === 'Confirmed').querySelector('input').click()`);
+    if (shots) await page.screenshot(join(shots, 'v04-atlas-chests.png'), true);
+    await advance(page, 21 * 60000);
+    await page.waitFor(`${chestRow}.includes('Not verified now')`, 4000).catch(() => {});
+    check('a mark expires when the chests move, and says not verified, never inactive', (await page.eval(chestRow)).includes('Not verified now') && !(await page.eval(text('.map-info'))).toLowerCase().includes('inactive'));
+    await page.eval(`[...document.querySelectorAll('.layers label')].find(x => x.textContent.includes('Helltide chests')).querySelector('input').click()`);
+    check('turning the chest layer off removes the chest section', (await page.eval("document.querySelector('.chest-section')")) === null);
+    check('the chest pages make no outside requests', page.requests.every((u) => u.startsWith(origin) || u.startsWith('blob:') || u.startsWith('data:')));
+    await page.close();
+  }
+
+  // 8e. Realms: a chest marked on Seasonal is not shown as active for Eternal.
+  {
+    const mark = { id: 'r1', event: 'helltideChest', at: '2026-10-24T15:05:00Z', timing: 'during', region: 'kehjistan', place: 'Gea Kul gate', chest: 'mystery', realm: 'seasonal', recordedAt: '2026-10-24T15:05:00Z' };
+    const page = await open('2026-10-24T15:10:00Z', { timezone: 'UTC', prefs: { realm: 'eternal' }, before: seed([mark]) });
+    await openPlaces(page, 'Kehjistan');
+    check('a Seasonal mark is not active for an Eternal player', (await page.eval(text('.chest-list'))).includes('Not verified now'));
+    await page.eval(`(() => { const s = document.querySelector('.chest-section select'); s.value = 'seasonal'; s.dispatchEvent(new Event('change')); })()`);
+    await sleep(100);
+    check('and is active for a Seasonal player', (await page.eval(text('.chest-list'))).includes('Active: you saw it'));
+    await page.close();
+  }
+
+  // 8g. Phone: a region's chest list and its buttons fit without sideways scrolling.
+  {
+    const spots = ['Amber Sands, by the cellar', 'Ragged Coastline, north of the waypoint, past the broken bridge'].map((place, i) =>
+      ({ id: `ph${i}`, event: 'helltideChest', at: '2026-10-23T12:00:00Z', timing: 'none', region: 'kehjistan', place, chest: 'tortured-gift', recordedAt: '2026-10-23T12:00:00Z' }));
+    const page = await open('2026-10-24T15:10:00Z', { width: 390, height: 844, mobile: true, before: seed(spots) });
+    await openPlaces(page, 'Kehjistan');
+    const overflow = await page.eval('document.documentElement.scrollWidth - innerWidth');
+    check('a region with chest spots has no horizontal scroll at 390 px', overflow <= 0 && (await page.eval("document.querySelectorAll('.chest-list li').length")) === 2, `overflow ${overflow}px`);
+    await page.close();
+  }
+
+  // 8f. A hostile import: markup stays text, bad records are refused, nothing is polluted.
+  {
+    const page = await open('2026-10-24T15:10:00Z', { timezone: 'UTC', before: "localStorage.removeItem('d4-tracker:v1:observations')" });
+    const fixture = fileURLToPath(new URL('./fixtures/sightings-malicious.json', import.meta.url));
+    await page.setFiles('#sightings-panel input[type=file]', [fixture]);
+    await page.waitFor(`${text('#sightings-panel .status-line')}.startsWith('Imported')`, 4000).catch(() => {});
+    const status = await page.eval(text('#sightings-panel .status-line'));
+    check('a hostile file imports only its clean record and refuses the rest', status.startsWith('Imported 1, skipped 0 already here, 5 not readable'), status);
+    await openPlaces(page, 'Kehjistan');
+    await page.eval("document.querySelector('.sight-recent').open = true");
+    check('markup in a record shows as text and runs nothing', await page.eval("document.title !== 'pwned' && !document.querySelector('img[src=x]') && document.querySelector('.chest-list').textContent.includes('<img src=x')"));
+    check('nothing is polluted by the file', await page.eval('({}).polluted === undefined'));
+    await page.close();
+  }
+
+  // 9. The event radar: lights only what is known, for its window, the same story as the cards.
+  {
+    const S = (id, rest) => ({ id, recordedAt: '2026-10-24T10:30:00Z', ...rest });
+    const scene = [
+      S('h1', { event: 'helltide', at: '2026-10-24T10:03:00Z', timing: 'during', region: 'hawezar' }),
+      S('h2', { event: 'helltide', at: '2026-10-24T10:05:00Z', timing: 'during', region: 'nahantu' }),
+      S('b1', { event: 'worldBoss', at: '2026-10-24T11:00:00Z', timing: 'start', boss: 'Ashava', place: 'Seared Basin', region: 'kehjistan' }),
+      S('b2', { event: 'worldBoss', at: '2026-10-24T11:00:00Z', timing: 'start', boss: 'Avarice', place: 'The Cauldron', region: 'nahantu' }),
+      S('l1', { event: 'legion', at: '2026-10-24T10:45:00Z', timing: 'start', place: 'Kor Dragan', region: 'fractured_peaks' }),
+      S('r1', { event: 'worldBoss', at: '2026-10-24T11:00:00Z', timing: 'start', boss: 'Azmodan', region: 'scosglen', provenance: 'reported' }),
+    ];
+    const lit = (page) => page.eval("[...document.querySelectorAll('.atlas-region.radar-helltide')].map(g => g.classList[1]).sort().join(',')");
+    const dots = (page) => page.eval("[...document.querySelectorAll('.radar-dot')].map(d => `${d.classList.contains('boss') ? 'boss' : 'legion'}:${d.dataset.region}:${d.classList.contains('pulse')}`).sort().join(',')");
+
+    const page = await open('2026-10-24T10:40:00Z', { timezone: 'UTC', before: seed(scene) });
+    check('the radar lights both regions with a Helltide on', (await lit(page)) === 'hawezar,nahantu', await lit(page));
+    check('gold dots for both World Bosses and a violet dot for the Legion, all pulsing this close',
+      (await dots(page)) === 'boss:kehjistan:true,boss:nahantu:true,legion:fractured_peaks:true', await dots(page));
+    check('a reported region stays dark: no light and no dot in Scosglen',
+      !(await page.eval("document.querySelector('.atlas-region.scosglen').classList.contains('radar-helltide') || !!document.querySelector('.radar-dot[data-region=\"scosglen\"]')")));
+    const card = await page.eval(row('worldBoss', 'Location'));
+    check('the World Boss card and the radar tell the same story', card.startsWith('Seared Basin, Kehjistan') && (await dots(page)).includes('boss:kehjistan'), card);
+    check('several events in one region keep their own indicators', await page.eval("document.querySelector('.atlas-region.nahantu').classList.contains('radar-helltide') && !!document.querySelector('.radar-dot.boss[data-region=\"nahantu\"]')"));
+    await page.eval("[...document.querySelectorAll('.atlas-region')].find(x => x.getAttribute('aria-label').startsWith('Kehjistan')).dispatchEvent(new MouseEvent('click', { bubbles: true }))");
+    const panel = await page.eval(text('.map-info'));
+    check('selecting a region lists its events with time and confidence', panel.includes('World Boss: Ashava, Kehjistan, 11:00 AM: seen in game (Confirmed)'), panel);
+    check('a marker carries a tooltip with the event, time and confidence', (await page.eval("document.querySelector('.radar-dot.legion title').textContent")).includes('Legion: Kor Dragan, Fractured Peaks, 10:45 AM: seen in game (Confirmed)'));
+    await page.emulateMedia([{ name: 'prefers-reduced-motion', value: 'reduce' }]);
+    const motion = await page.eval(`(() => { const a = document.querySelector('.atlas-region.radar-helltide path'); const b = document.querySelector('.radar-dot.pulse .ring');
+      return a && b ? getComputedStyle(a).animationName + '/' + getComputedStyle(b).animationName : 'missing'; })()`);
+    check('reduced motion: nothing breathes or pulses', motion === 'none/none', motion);
+    await page.eval("[...document.querySelectorAll('.radar-chips label')].find(l => l.textContent.includes('World Bosses')).querySelector('input').click()");
+    check('the phone summary is not shown on a desktop', await page.eval("!!document.querySelector('.radar-summary') && getComputedStyle(document.querySelector('.radar-summary')).display === 'none'"));
+    check('turning World Bosses off removes their dots, and is remembered', !(await dots(page)).includes('boss') && await page.eval("JSON.parse(localStorage.getItem('d4-tracker:v1:prefs')).radar.worldBoss === false"));
+    if (shots) await page.screenshot(join(shots, 'radar.png'), { height: 1240 });
+    await page.close();
+
+    // Lead-up windows and expiry: 40 minutes before the World Boss nothing shows; the Legion 25 minutes out does not either.
+    const early = await open('2026-10-24T10:20:00Z', { timezone: 'UTC', before: seed(scene) });
+    check('no spawn marker before its lead-up window', (await dots(early)) === '', await dots(early));
+    check('with only the Helltides lit, the summary has only the Helltide line', (await early.eval("[...document.querySelectorAll('.radar-summary li')].map(li => li.className).join(',')")) === 'helltide');
+    await early.close();
+    const longLead = await open('2026-10-24T10:05:00Z', { timezone: 'UTC', prefs: { radarLead: { worldBoss: 60, legion: 10 } }, before: seed(scene) });
+    check('a longer lead-up shows the World Boss earlier, without a pulse until 30 minutes before', (await dots(longLead)) === 'boss:kehjistan:false,boss:nahantu:false', await dots(longLead));
+    await longLead.close();
+    const after = await open('2026-10-24T11:11:00Z', { timezone: 'UTC', width: 390, height: 844, mobile: true, before: seed(scene) });
+    check('everything goes out once its event is over', (await dots(after)) === '' && (await lit(after)) === '', `${await dots(after)} / ${await lit(after)}`);
+    check('with nothing lit there is no summary', (await after.eval("document.querySelector('.radar-summary')")) === null);
+    await after.close();
+
+    // Phone and compact.
+    const phone = await open('2026-10-24T10:40:00Z', { timezone: 'UTC', width: 390, height: 844, mobile: true, before: seed(scene) });
+    check('the radar fits a phone without sideways scrolling', (await phone.eval('document.documentElement.scrollWidth - innerWidth')) <= 0 && (await lit(phone)) === 'hawezar,nahantu');
+    const summary = await phone.eval("[...document.querySelectorAll('.radar-summary li')].filter(li => li.offsetParent !== null).map(li => li.textContent).join(' | ')");
+    check('on a phone, one summary line per event type, exactly what the radar lights',
+      summary === 'Helltide: Hawezar, Nahantu · until 10:55 AM | World Boss 11:00 AM: Ashava, Kehjistan; Avarice, Nahantu | Legion 10:45 AM: Kor Dragan, Fractured Peaks', summary);
+    await phone.eval("[...document.querySelectorAll('.radar-chips label')].find(l => l.textContent.includes('Legion')).querySelector('input').click()");
+    check('switching an event off removes its summary line too', !(await phone.eval(text('.radar-summary'))).includes('Legion'));
+    if (shots) await phone.screenshot(join(shots, 'radar-phone.png'), true);
+    await phone.close();
+    const compact = await open('2026-10-24T10:40:00Z', { timezone: 'UTC', prefs: { compact: true }, before: seed(scene) });
+    check('compact view keeps to the countdowns: the radar is hidden there', await compact.eval("getComputedStyle(document.getElementById('map-panel')).display === 'none' || document.getElementById('lower').offsetParent === null"));
+    check('the radar makes no errors in compact view', compact.problems.length === 0, JSON.stringify(compact.problems));
+    await compact.close();
   }
 } finally {
   await chrome.close();

@@ -4,20 +4,39 @@
 import eventsJson from '../../data/events.json';
 import locationsJson from '../../data/locations.json';
 import observationsJson from '../../data/observations.json';
+import rotationsJson from '../../data/rotations.json';
 import seasonsJson from '../../data/seasons.json';
 import type { DetailReasons } from '../adapters/offline-details';
 import type { EventDefinition, EventKind, TimedSegment } from '../engine/events';
 import { parseFile, type Observation, type ObservedEvent } from '../engine/observations';
+import type { RegisteredRule } from '../engine/prediction';
 import { anchorEvidence, MIN_DAYS, MIN_MATCHING } from '../engine/verification';
 import type { MapData, MapMarker, MapRegion } from './map';
 import {
-  checkEvents, checkLocations, checkSeasons,
-  type EventsFile, type LocationsFile, type SeasonsFile, type Source,
+  checkEvents, checkLocations, checkRotations, checkSeasons,
+  type EventsFile, type LocationsFile, type RotationsFile, type SeasonsFile, type Source,
 } from './schema';
 
 export const EVENTS = eventsJson as EventsFile;
 export const LOCATIONS = locationsJson as LocationsFile;
 export const SEASONS = seasonsJson as SeasonsFile;
+export const ROTATIONS = rotationsJson as RotationsFile;
+
+/** Orders registered for our sightings to test; none is shown until sightings bear it out. */
+export const REGISTERED_RULES: RegisteredRule[] = ROTATIONS.rules.map((r) => ({
+  id: r.id, event: r.event, field: r.field, sequence: r.sequence, anchor: r.anchor, registeredOn: r.registeredOn,
+  basis: r.basis, documented: r.sources.some((s) => s.kind === 'blizzard'),
+}));
+
+/**
+ * Moments an order may reset: every season start, and any patch or maintenance the data names.
+ * Order predictions use only sightings since the last one, and stop at the next one.
+ */
+export function resetBoundaries(): number[] {
+  const seasons = SEASONS.seasons.filter((s) => s.startUtc).map((s) => Date.parse(s.startUtc!));
+  const next = SEASONS.nextStartUtc ? [Date.parse(SEASONS.nextStartUtc)] : [];
+  return [...seasons, ...next, ...ROTATIONS.resets.map((r) => Date.parse(r.at))].sort((a, b) => a - b);
+}
 
 // Our own in-game sightings, added to the repository from exported files. Every record must read
 // cleanly: a damaged entry fails the check instead of being dropped quietly.
@@ -56,6 +75,7 @@ export function eventDefinitions(file: EventsFile = EVENTS): EventDefinition[] {
     checkedOn: file.checkedOn,
     notice: e.announcedChanges.find((c) => c.effective === null)?.summary ?? null,
     roster: e.roster,
+    ...(e.extraSpawn ? { extra: { every: e.extraSpawn.every, anchorMs: Date.parse(e.extraSpawn.anchor), claim: e.extraSpawn } } : {}),
     segments: e.schedules
       .map((s): TimedSegment => ({
         fromMs: instant(s.from, -Infinity),
@@ -124,15 +144,15 @@ function buildMap(): MapData {
     })),
   ];
   return {
-    banner: 'Stylized reference atlas: original artwork with approximate regional relationships, not a navigation-accurate game map. A named place without a verified display position stays in the location list.',
-    intro: 'Select a region to open its regional reference. Gold = World Boss arena, violet = Legion site, blue = waypoint. Helltide eligibility is shown as an inferred availability layer, never as an active-location prediction.',
+    banner: 'Regional event overview. Locations are approximate; use the in-game map for navigation.',
+    intro: 'A region lights only when its event\'s place is known: seen in game (log it from a card), or predicted by an order your sightings bear out, labeled Inferred. Unlit means not known yet, never "nothing there". Select a region for its events, places and chest spots.',
     regions,
     markers,
   };
 }
 
 // Check everything before anything is used. The constants and functions above must exist first.
-const problems = [...checkEvents(EVENTS), ...checkLocations(LOCATIONS), ...checkSeasons(SEASONS)];
+const problems = [...checkEvents(EVENTS), ...checkLocations(LOCATIONS), ...checkSeasons(SEASONS), ...checkRotations(ROTATIONS, EVENTS, LOCATIONS)];
 if (parsedSightings.rejected) problems.push(`observations: ${parsedSightings.rejected} unreadable record(s)`);
 if (!problems.length) problems.push(...crossCheck(EVENTS, SHARED_SIGHTINGS));
 if (problems.length) throw new Error(`Data check failed:\n${problems.join('\n')}`);
