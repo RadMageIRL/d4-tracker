@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.6.0 (unreleased)
+## v0.6.0 (2026-10-24)
 
 - Helltide region predictions. The Helltide card names the region of the Helltide in progress,
   base-game and expansion, labeled Predicted, and the Event Radar lights it with a dashed,
@@ -25,8 +25,9 @@
   arena order holds in tracker records. The boss is still predicted, and the arena list stays.
 - Less on the cards: a Boss or Location row with nothing known yet stays hidden (the reason is under
   About this card).
+- The README screenshot shows v0.6.
 
-## v0.5.0 (unreleased)
+## v0.5.0 (2026-10-24)
 
 - World Boss predictions. The card names the boss and arena of the next spawn, labeled Predicted
   (later spawns' predictions are folded under "Later predictions"), and the Event Radar lights the
