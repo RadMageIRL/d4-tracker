@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.3.0 (unreleased)
+
+- Sanctuary Atlas replaces the schematic map: a stylized overview of the seven regions and an
+  original illustration for each one (Fractured Peaks, Scosglen, Dry Steppes, Kehjistan, Hawezar,
+  Nahantu and Skovos), opened from the overview with the mouse or keyboard, with a button back.
+  All of it is drawn for this project and built into the page: no outside images, fonts, scripts
+  or map services.
+- Layers for waypoints, World Boss arenas, Legion sites and the regions that can host a Helltide.
+  Each place shows its sources, its confidence and when its sources were checked. A place is
+  pinned only when a source supports its position; none does yet, so every place is listed by
+  name instead.
+- Tests that the atlas art has no scripts or outside links, and browser checks for opening a
+  region and going back on a phone.
+
 ## v0.2.0 (2026-10-23)
 
 First public release, at radmagelabs.com/d4/ and radmageirl.github.io/d4-tracker/.

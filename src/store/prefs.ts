@@ -12,7 +12,7 @@ const KEY = 'prefs';
 export type Theme = 'dark' | 'light';
 export type ZoneChoice = 'local' | 'utc';
 export type CardId = 'helltide' | 'worldBoss' | 'legion' | 'map' | 'season' | 'sightings';
-export type LayerId = 'regions' | 'worldBoss' | 'legion' | 'helltide';
+export type LayerId = 'regions' | 'worldBoss' | 'legion' | 'waypoint' | 'helltide';
 
 /** The lead times offered for each event, in minutes (0 = when it starts). */
 export const REMINDER_CHOICES = {
@@ -37,12 +37,12 @@ export interface Prefs {
 }
 
 export const CARD_IDS: CardId[] = ['helltide', 'worldBoss', 'legion', 'map', 'season', 'sightings'];
-export const LAYER_IDS: LayerId[] = ['regions', 'worldBoss', 'legion', 'helltide'];
+export const LAYER_IDS: LayerId[] = ['regions', 'worldBoss', 'legion', 'waypoint', 'helltide'];
 
 export function defaultPrefs(): Prefs {
   return {
     cards: { helltide: true, worldBoss: true, legion: true, map: true, season: true, sightings: true },
-    layers: { regions: true, worldBoss: true, legion: true, helltide: true },
+    layers: { regions: true, worldBoss: true, legion: true, waypoint: true, helltide: true },
     compact: false,
     theme: 'dark',
     clock: 'auto',

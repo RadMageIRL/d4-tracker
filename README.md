@@ -19,8 +19,10 @@ Live at https://radmagelabs.com/d4/
 - **Season.** The live season, when it started and how many days in it is, its end and the next
   season's start once Blizzard announces them, announced windows such as a PTR, and every past
   season with its dates and length.
-- **Sanctuary.** A prototype map of the seven regions with Blizzard's published waypoints and
-  layers for World Boss arenas, Legion sites and Helltide regions.
+- **Sanctuary Atlas.** An original, stylized overview of the seven regions, with an illustration
+  for each region. Each region lists its waypoints, World Boss arena and Legion sites with their
+  sources, and a Helltide layer marks the regions that can host one. It is not a navigation map: a
+  place stays in the list by name until a source supports where to pin it.
 - **Sightings.** Log what you see in game (a spawn time, the boss, the arena, the Helltide region,
   a chest spot). The tracker checks your times against its schedule and looks for repeating
   rotations, and says when there is not enough data to tell.

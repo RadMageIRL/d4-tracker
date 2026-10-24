@@ -1,9 +1,8 @@
 // Where the map's region tiles sit: three columns on wide screens, two on phones. Coordinates are
 // the SVG's own units. An original diagram grouped by release, not a geographic map.
 
-import type { MapData } from './map';
-
-export const MAP_LAYOUTS: MapData['layouts'] = {
+/** Retained only as an archival reference for the v0.2 schematic; the atlas no longer imports it. */
+export const MAP_LAYOUTS = {
     wide: {
       width: 556, height: 290, tileWidth: 120, tileHeight: 100,
       groups: [

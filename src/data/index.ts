@@ -10,7 +10,6 @@ import type { EventDefinition, EventKind, TimedSegment } from '../engine/events'
 import { parseFile, type Observation, type ObservedEvent } from '../engine/observations';
 import { anchorEvidence, MIN_DAYS, MIN_MATCHING } from '../engine/verification';
 import type { MapData, MapMarker, MapRegion } from './map';
-import { MAP_LAYOUTS } from './map-layouts';
 import {
   checkEvents, checkLocations, checkSeasons,
   type EventsFile, type LocationsFile, type SeasonsFile, type Source,
@@ -105,26 +104,30 @@ function buildMap(): MapData {
     helltideNote: `${CONFIDENCE_WORD[ht.confidence]}: can host a Helltide. ${r.release === 'base'
       ? 'From Season 16 (3.3.0 PTR notes), base-game Helltides start on the hour.'
       : 'Needs the expansion. From Season 16 (3.3.0 PTR notes), expansion-zone Helltides start at :30.'}`,
+    terrain: ({ fractured_peaks: 'snowbound highlands', scosglen: 'rainy coast and forest', dry_steppes: 'wind-carved grassland', kehjistan: 'desert and salt coast', hawezar: 'wetlands and swamp', nahantu: 'dense jungle', skovos: 'rocky island' } as Record<string, string>)[r.id] ?? 'Sanctuary',
   }));
   const markers: MapMarker[] = [
+    ...LOCATIONS.regions.flatMap((r) => r.waypoints.map((name): MapMarker => ({
+      id: `wp-${r.id}-${name}`, layer: 'waypoint', regionId: r.id, name, confidence: r.confidence,
+      detail: 'Waypoint name verified by the listed official source. Its display placement is intentionally omitted until a position is independently verified.',
+      source: sourceText(r.sources), checkedOn: LOCATIONS.checkedOn,
+    }))),
     ...LOCATIONS.worldBossArenas.map((a): MapMarker => ({
       id: `wb-${a.region}`, layer: 'worldBoss', regionId: a.region, name: a.name, confidence: a.confidence,
       detail: 'One of the seven World Boss arenas. Any boss can appear in any arena; the in-game map shows which arena before the spawn.',
-      source: sourceText(a.sources),
+      source: sourceText(a.sources), checkedOn: LOCATIONS.checkedOn,
     })),
     ...LOCATIONS.legionSites.map((l): MapMarker => ({
       id: `legion-${l.region}`, layer: 'legion', regionId: l.region, name: l.name, confidence: l.confidence,
       detail: l.note ?? 'A Gathering Legions site.',
-      source: sourceText(l.sources),
+      source: sourceText(l.sources), checkedOn: LOCATIONS.checkedOn,
     })),
   ];
   return {
-    banner: 'Prototype map: an original diagram, not game geography. Regions are grouped by release, not placed where they lie, and places are named rather than pinned (no licensed coordinates exist).',
-    intro: 'Select a region or a marker. Gold markers are World Boss arenas and violet markers are Legion sites. ' +
-      'The Helltide layer outlines regions that can host a Helltide; which one is active is not known in advance.',
+    banner: 'Stylized reference atlas: original artwork with approximate regional relationships, not a navigation-accurate game map. A named place without a verified display position stays in the location list.',
+    intro: 'Select a region to open its regional reference. Gold = World Boss arena, violet = Legion site, blue = waypoint. Helltide eligibility is shown as an inferred availability layer, never as an active-location prediction.',
     regions,
     markers,
-    layouts: MAP_LAYOUTS,
   };
 }
 

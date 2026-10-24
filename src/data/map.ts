@@ -1,6 +1,6 @@
-// Map content. Regions are original schematic tiles (drawn for this project, not traced from any
-// game or third-party map). Markers are named places only, attached to a region, with no
-// coordinates: v0.1 has no licensed position data.
+// Map content. The regions are drawn by the atlas art in src/assets/atlas (original, not traced
+// from any game or third-party map). Markers are named places attached to a region; one gets a
+// position only when a source supports it, and none has one yet.
 
 export interface MapRegion {
   id: string;
@@ -12,16 +12,21 @@ export interface MapRegion {
   helltide: boolean;
   helltideNote: string;
   note: string;
+  terrain: string;
 }
 
 export interface MapMarker {
   id: string;
-  layer: 'worldBoss' | 'legion';
+  layer: 'worldBoss' | 'legion' | 'waypoint' | 'helltide';
   regionId: string;
   name: string;
   confidence: 'confirmed' | 'inferred' | 'unknown';
   detail: string;
   source?: string;
+  /** When the record's sources were last checked (not proof that it was seen in game). */
+  checkedOn?: string;
+  /** Only set when a source supports a meaningful atlas placement. */
+  position?: { x: number; y: number };
 }
 
 export interface MapGroup {
@@ -47,6 +52,4 @@ export interface MapData {
   intro: string;
   regions: MapRegion[];
   markers: MapMarker[];
-  /** wide: desktop and tablets; narrow: phones. */
-  layouts: { wide: MapLayout; narrow: MapLayout };
 }

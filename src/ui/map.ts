@@ -1,9 +1,7 @@
-// The Sanctuary map: an original schematic drawn from scratch, not game imagery. Each region is a
-// tile; markers sit inside their region's tile in a row, because v0.1 has no licensed
-// coordinates. Selecting a region or marker shows what is known about it. Phones get a two-column
-// layout of the same tiles so the names stay readable.
-
-import type { MapData, MapLayout, MapMarker, MapRegion } from '../data/map';
+// An original, deliberately non-navigational atlas. Geographic art and location facts stay
+// separate: a name with no independently supported display position remains list-only.
+import { ATLAS_ART } from '../data/atlas-art';
+import type { MapData, MapMarker, MapRegion } from '../data/map';
 import type { LayerId } from '../store/prefs';
 import { badge } from './cards';
 import { h, nodes, s } from './dom';
@@ -17,6 +15,7 @@ const LAYER_LABELS: Record<LayerId, string> = {
   regions: 'Region names',
   worldBoss: 'World Boss arenas',
   legion: 'Legion sites',
+  waypoint: 'Waypoints',
   helltide: 'Helltide regions',
 };
 
@@ -24,16 +23,9 @@ const LAYER_SWATCH: Record<LayerId, string> = {
   regions: 'var(--text-dim)',
   worldBoss: 'var(--boss)',
   legion: 'var(--legion)',
+  waypoint: '#6fa9b7',
   helltide: 'var(--helltide)',
 };
-
-const NARROW = '(max-width: 640px)';
-
-/** A rounded rectangle as an SVG path. */
-function tilePath(x: number, y: number, w: number, hgt: number, r = 10): string {
-  return `M${x + r} ${y}h${w - 2 * r}a${r} ${r} 0 0 1 ${r} ${r}v${hgt - 2 * r}a${r} ${r} 0 0 1 ${-r} ${r}` +
-    `h${-(w - 2 * r)}a${r} ${r} 0 0 1 ${-r} ${-r}v${-(hgt - 2 * r)}a${r} ${r} 0 0 1 ${r} ${-r}z`;
-}
 
 function activate(el: Element, run: () => void): void {
   el.addEventListener('click', (e) => { e.stopPropagation(); run(); });
@@ -48,9 +40,6 @@ export class SanctuaryMap {
   private holder = h('div', {});
   private info = h('div', { class: 'map-info', 'aria-live': 'polite' });
   private chips = h('div', { class: 'layers', role: 'group', 'aria-label': 'Map layers' });
-  private regionEls = new Map<string, SVGElement>();
-  private markerEls: { marker: MapMarker; el: SVGElement }[] = [];
-  private labelEls: SVGElement[] = [];
   private selected: string | null = null;
 
   constructor(private data: MapData, private hooks: MapHooks) {
@@ -61,102 +50,90 @@ export class SanctuaryMap {
         input, h('span', { class: 'swatch', style: `background:${LAYER_SWATCH[id]}` }), LAYER_LABELS[id]));
     }
     this.el = h('div', {},
-      h('h2', { id: 'map-title' }, 'Sanctuary', h('span', { class: 'note' }, 'schematic, not to scale')),
+      h('h2', { id: 'map-title' }, 'Sanctuary Atlas', h('span', { class: 'note' }, 'stylized reference, not navigation-accurate')),
       h('p', { class: 'banner' }, data.banner),
       this.chips,
       h('div', { class: 'map-wrap' }, this.holder, this.info),
     );
-    const query = typeof matchMedia === 'function' ? matchMedia(NARROW) : null;
-    this.draw(query?.matches ? data.layouts.narrow : data.layouts.wide);
-    query?.addEventListener('change', (e) => this.draw(e.matches ? data.layouts.narrow : data.layouts.wide));
+    this.drawOverview();
     this.showIntro();
   }
 
-  private draw(layout: MapLayout): void {
-    this.regionEls.clear();
-    this.markerEls = [];
-    this.labelEls = [];
-    const svg = s('svg', {
-      class: 'map-svg', viewBox: `0 0 ${layout.width} ${layout.height}`, role: 'group', 'aria-label': 'Schematic map of Sanctuary',
-    });
-    for (const g of layout.groups) svg.append(s('text', { class: 'group', x: g.x, y: g.y }, g.label));
+  private drawOverview(): void {
+    this.selected = null;
+    const svg = s('svg', { class: 'map-svg atlas-overview', viewBox: '0 0 760 430', role: 'group', 'aria-label': 'Stylized overview of Sanctuary. Select a region for its atlas.' });
+    svg.innerHTML = (ATLAS_ART.sanctuary ?? '').replace(/^[\s\S]*?<svg[^>]*>|<\/svg>\s*$/g, '');
+    const positions: Record<string, [number, number, string]> = {
+      scosglen: [174, 120, 'M85 63 169 45 244 81 246 145 196 177 109 161 70 113Z'], fractured_peaks: [304, 110, 'M247 81 312 53 382 79 409 136 362 181 279 164 246 145Z'], dry_steppes: [190, 240, 'M89 176 175 170 249 204 242 281 165 307 94 270 73 220Z'], kehjistan: [317, 295, 'M240 211 330 188 402 232 397 324 318 353 241 310 218 260Z'], hawezar: [446, 222, 'M399 160 481 145 548 190 531 273 459 299 395 258Z'], nahantu: [500, 320, 'M414 287 495 267 573 302 590 363 522 389 445 367 408 329Z'], skovos: [625, 325, 'M594 299 650 282 700 311 690 355 632 370 591 340Z'],
+    };
     for (const r of this.data.regions) {
-      const at = layout.tiles[r.id];
-      if (at) this.drawRegion(svg, r, at.x, at.y, layout);
+      const [x, y, d] = positions[r.id]!;
+      const group = s('g', { class: `atlas-region ${r.id} ${r.helltide && this.hooks.layers().helltide ? 'hot' : ''}`, tabindex: 0, role: 'button', 'aria-label': `${r.name}, ${r.terrain}: open regional atlas` });
+      activate(group, () => this.openRegion(r.id));
+      group.append(s('path', { d }), s('text', { class: 'atlas-label', x, y, 'text-anchor': 'middle' }, r.name));
+      const exists = this.data.markers.some((m) => m.regionId === r.id);
+      if (exists) group.append(s('circle', { class: 'atlas-known', cx: x + 42, cy: y - 16, r: 4 }));
+      svg.append(group);
     }
     this.holder.replaceChildren(svg);
-    this.applyLayers();
-    this.highlight(this.selected);
-  }
-
-  private drawRegion(svg: SVGElement, r: MapRegion, x: number, y: number, layout: MapLayout): void {
-    const shape = s('path', {
-      class: 'region', d: tilePath(x, y, layout.tileWidth, layout.tileHeight), tabindex: 0, role: 'button',
-      'aria-label': `${r.name}: show details`,
-    });
-    activate(shape, () => this.selectRegion(r.id));
-    this.regionEls.set(r.id, shape);
-    const cx = x + layout.tileWidth / 2;
-    const labelY = y + layout.tileHeight * 0.42;
-    const label = s('text', { class: 'label', x: cx, y: labelY, 'text-anchor': 'middle' }, r.name);
-    this.labelEls.push(label);
-    svg.append(shape, label);
-    const mine = this.data.markers.filter((m) => m.regionId === r.id);
-    mine.forEach((m, i) => {
-      const g = s('g', {
-        class: `marker ${m.layer === 'worldBoss' ? 'boss' : 'legion'}`, tabindex: 0, role: 'button',
-        'aria-label': `${m.name}, ${r.name}: show details`,
-      }, s('circle', { cx: cx + (i - (mine.length - 1) / 2) * 22, cy: labelY + 22, r: 7 }), s('title', {}, m.name));
-      activate(g, () => this.selectMarker(m));
-      this.markerEls.push({ marker: m, el: g });
-      svg.append(g);
-    });
   }
 
   private applyLayers(): void {
-    const on = this.hooks.layers();
-    for (const label of this.labelEls) label.style.display = on.regions ? '' : 'none';
-    for (const { marker, el } of this.markerEls) el.style.display = on[marker.layer] ? '' : 'none';
-    for (const r of this.data.regions) this.regionEls.get(r.id)?.classList.toggle('hot', on.helltide && r.helltide);
-  }
-
-  private highlight(id: string | null): void {
-    this.selected = id;
-    for (const [rid, el] of this.regionEls) el.classList.toggle('selected', rid === id);
+    if (this.selected) {
+      const region = this.data.regions.find((r) => r.id === this.selected);
+      if (region) this.showRegionInfo(region);
+    } else this.drawOverview();
   }
 
   private showIntro(): void {
-    this.highlight(null);
+    this.selected = null;
     this.info.replaceChildren(h('h3', {}, 'Select a region'), h('p', { class: 'muted' }, this.data.intro));
   }
 
-  private selectRegion(id: string): void {
-    if (this.selected === id) { this.showIntro(); return; }
+  private openRegion(id: string): void {
     const r = this.data.regions.find((x) => x.id === id);
     if (!r) return;
-    this.highlight(id);
-    const markers = this.data.markers.filter((m) => m.regionId === id);
+    this.selected = id;
+    this.drawRegion(r);
+    this.showRegionInfo(r);
+  }
+
+  private drawRegion(r: MapRegion): void {
+    const art = ATLAS_ART[r.id];
+    const wrapper = h('div', { class: 'regional-art', role: 'img', 'aria-label': `${r.name}, original stylized regional terrain illustration` });
+    wrapper.innerHTML = art ?? '';
+    const back = h('button', { class: 'btn atlas-back', type: 'button' }, '← Sanctuary overview');
+    back.addEventListener('click', () => { this.drawOverview(); this.showIntro(); });
+    this.holder.replaceChildren(back, wrapper);
+  }
+
+  private showRegionInfo(r: MapRegion): void {
+    const markers = this.data.markers.filter((m) => m.regionId === r.id && this.hooks.layers()[m.layer]);
     this.info.replaceChildren(...nodes(
       h('h3', {}, r.name),
-      h('p', { class: 'muted' }, r.note),
-      r.waypoints.length
-        ? h('p', {}, h('strong', {}, 'Waypoints: '), r.waypoints.join(', '), ' ', badge('From Blizzard', 'confirmed'))
-        : h('p', { class: 'muted' }, 'No waypoints recorded for this region yet.'),
+      h('p', { class: 'muted' }, `${r.terrain}. ${r.note}`),
       r.helltide ? h('p', {}, r.helltideNote) : null,
       markers.length
-        ? h('ul', {}, ...markers.map((m) => h('li', {}, `${m.layer === 'worldBoss' ? 'World Boss arena' : 'Legion site'}: ${m.name} `, badge('Name', m.confidence))))
-        : h('p', { class: 'muted' }, 'No event sites recorded for this region yet.'),
+        ? h('ul', { class: 'atlas-location-list' }, ...markers.map((m) => {
+          const b = h('button', { class: `location-item ${m.layer}`, type: 'button' }, `${this.typeLabel(m.layer)}: ${m.name}`, ' ', badge(m.confidence, m.confidence));
+          b.addEventListener('click', () => this.selectMarker(m)); return h('li', {}, b);
+        }))
+        : h('p', { class: 'muted' }, 'No locations in the enabled layers for this region.'),
+      h('p', { class: 'atlas-placement-note' }, 'List-only locations have no reliable display coordinate yet; no pin has been invented for them.'),
     ));
   }
 
+  private typeLabel(layer: MapMarker['layer']): string { return ({ worldBoss: 'World Boss arena', legion: 'Legion site', waypoint: 'Waypoint', helltide: 'Helltide' } as Record<string, string>)[layer] ?? layer; }
+
   private selectMarker(m: MapMarker): void {
     const r = this.data.regions.find((x) => x.id === m.regionId);
-    this.highlight(m.regionId);
     this.info.replaceChildren(...nodes(
       h('h3', {}, m.name),
-      h('p', { class: 'muted' }, `${m.layer === 'worldBoss' ? 'World Boss arena' : 'Legion site'} in ${r?.name ?? 'Sanctuary'}`),
-      h('p', {}, m.detail, ' ', badge('Name', m.confidence)),
+      h('p', { class: 'muted' }, `${this.typeLabel(m.layer)} in ${r?.name ?? 'Sanctuary'}`),
+      h('p', {}, m.detail, ' ', badge(m.confidence, m.confidence)),
       m.source ? h('p', { class: 'muted' }, `Source: ${m.source}`) : null,
+      m.checkedOn ? h('p', { class: 'muted' }, `Sources checked: ${m.checkedOn}`) : null,
+      !m.position ? h('p', { class: 'atlas-placement-note' }, 'Display position: unknown, so it is kept in the list rather than placed misleadingly.') : null,
     ));
   }
 }

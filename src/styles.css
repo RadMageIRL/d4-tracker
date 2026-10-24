@@ -346,18 +346,21 @@ table.history td .muted { font-size: 12px; }
 .map-wrap > div:first-child { max-width: 760px; }
 .map-info { border-top: 1px solid var(--line); padding-top: 10px; min-height: 92px; }
 .map-svg { width: 100%; height: auto; display: block; }
-.map-svg .region { fill: var(--surface-2); stroke: var(--line-strong); stroke-width: 1.5; cursor: pointer; }
-.map-svg .region:hover, .map-svg .region.selected { stroke: var(--focus); }
-.map-svg .region.hot { stroke: var(--helltide); stroke-dasharray: 5 4; }
-.map-svg .region.hot.selected, .map-svg .region.hot:hover { stroke: var(--focus); stroke-dasharray: none; }
-.map-svg .group { fill: var(--text-faint); font: 600 10px var(--sans); letter-spacing: 0.08em; }
-.map-svg .label { fill: var(--text-dim); font: 600 13px var(--serif); pointer-events: none; }
-.map-svg .sea { fill: none; }
-.map-svg .marker { cursor: pointer; }
-.map-svg .marker circle { stroke: var(--bg); stroke-width: 2; }
-.map-svg .marker.boss circle { fill: var(--boss); }
-.map-svg .marker.legion circle { fill: var(--legion); }
-.map-svg .marker:focus-visible circle { stroke: var(--focus); }
+.atlas-overview { color: var(--text-dim); overflow: visible; }
+.atlas-sea { fill: color-mix(in srgb, var(--surface-2) 82%, #243039); }
+.atlas-coast { fill: color-mix(in srgb, var(--surface) 35%, #514638); stroke: color-mix(in srgb, var(--text-faint) 65%, transparent); stroke-width: 2; }
+.atlas-route { fill: none; stroke: color-mix(in srgb, var(--boss) 55%, transparent); stroke-width: 1.3; stroke-dasharray: 3 5; }
+.atlas-mountains path, .atlas-trees path, .atlas-reeds path { fill: none; stroke: color-mix(in srgb, var(--text) 65%, #776452); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.atlas-waves { fill: none; stroke: #6c9ca6; stroke-width: 1.5; opacity: .7; }
+.atlas-river { fill: none; stroke: #6c9ca6; stroke-width: 4; opacity: .75; }
+.atlas-ridge, .atlas-dunes { fill: none; stroke: #bc9358; stroke-width: 2; opacity: .75; }
+.atlas-oasis { fill: #6c9ca6; opacity: .8; }
+.atlas-coastline { fill: none; stroke: #6c9ca6; stroke-width: 5; opacity: .7; }
+.region-land { stroke: color-mix(in srgb, var(--text-faint) 80%, transparent); stroke-width: 3; }
+.region-land.peaks { fill: #69727a; }.region-land.green { fill: #526a51; }.region-land.dry { fill: #a47748; }.region-land.desert { fill: #b28b51; }.region-land.swamp { fill: #526458; }.region-land.jungle { fill: #42624e; }.region-land.island { fill: #716653; }
+.atlas-region { cursor: pointer; }.atlas-region path { fill: color-mix(in srgb, var(--surface-2) 25%, #817258); stroke: var(--line-strong); stroke-width: 2; transition: fill .16s, stroke .16s; }.atlas-region.scosglen path, .atlas-region.nahantu path { fill: color-mix(in srgb, #45634c 70%, var(--surface-2)); }.atlas-region.fractured_peaks path { fill: color-mix(in srgb, #70808a 72%, var(--surface-2)); }.atlas-region.dry_steppes path, .atlas-region.kehjistan path { fill: color-mix(in srgb, #a77b48 70%, var(--surface-2)); }.atlas-region.hawezar path { fill: color-mix(in srgb, #526658 72%, var(--surface-2)); }.atlas-region.skovos path { fill: color-mix(in srgb, #776756 72%, var(--surface-2)); }
+.atlas-region:hover path, .atlas-region:focus-visible path { stroke: var(--focus); stroke-width: 3; filter: brightness(1.16); }.atlas-region.hot path { stroke: var(--helltide); stroke-dasharray: 6 4; }.atlas-label { fill: var(--text); font: 600 14px var(--serif); pointer-events: none; paint-order: stroke; stroke: var(--bg); stroke-width: 3px; }.atlas-known { fill: var(--ok); stroke: var(--surface); stroke-width: 2; }
+.regional-art { position: relative; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }.regional-art svg { display: block; width: 100%; height: auto; }.atlas-back { margin: 0 0 8px; }.atlas-subareas { color: var(--text-dim); font-size: 13px; }.atlas-location-list { list-style: none; padding: 0; display: grid; gap: 4px; }.location-item { width: 100%; text-align: left; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); border-radius: 6px; padding: 5px 8px; cursor: pointer; font-size: 13px; }.location-item:hover { border-color: var(--text-faint); }.location-item.worldBoss { border-left: 3px solid var(--boss); }.location-item.legion { border-left: 3px solid var(--legion); }.location-item.waypoint { border-left: 3px solid #6fa9b7; }.atlas-placement-note { font-size: 12px; color: var(--text-faint); margin-bottom: 0; }
 
 .layers { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
 .chip {

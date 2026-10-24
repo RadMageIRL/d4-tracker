@@ -402,14 +402,20 @@ try {
     check('settings explain the clock check needs a server', data.includes('needs the page to come from a web server'), data.slice(-300));
   }
 
-  // 7. Phone width: no sideways scrolling, two-column map.
+  // 7. Phone width: no sideways scrolling; the scalable overview and regional atlas stay usable.
   {
     // A first visit: no sightings left over from the earlier checks in this browser.
     const page = await open('2026-10-24T15:00:00Z', { width: 390, height: 844, mobile: true, before: "localStorage.removeItem('d4-tracker:v1:observations')" });
     const overflow = await page.eval('document.documentElement.scrollWidth - innerWidth');
     check('no horizontal scroll at 390 px', overflow <= 0, `overflow ${overflow}px`);
     const vb = await page.eval("document.querySelector('.map-svg').getAttribute('viewBox')");
-    check('phone map uses the narrow layout', vb === '0 0 284 468', vb);
+    check('phone atlas uses a scalable overview', vb === '0 0 760 430', vb);
+    await page.eval("[...document.querySelectorAll('.atlas-region')].find(x => x.getAttribute('aria-label').startsWith('Fractured Peaks')).dispatchEvent(new MouseEvent('click', { bubbles: true }))");
+    check('phone can open a regional atlas', await page.eval("document.querySelector('.regional-art') !== null"));
+    await page.eval("document.querySelector('.atlas-back').click()");
+    check('regional atlas return restores overview', await page.eval("document.querySelector('.atlas-overview') !== null"));
+    await page.eval("[...document.querySelectorAll('.layers label')].find(x => x.textContent.includes('Waypoints')).querySelector('input').click()");
+    check('marker layer toggles persist through region view', await page.eval("JSON.parse(localStorage.getItem('d4-tracker:v1:prefs')).layers.waypoint === false"));
     if (shots) await page.screenshot(join(shots, 'phone.png'), true);
   }
 } finally {

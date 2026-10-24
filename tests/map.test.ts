@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MAP_DATA } from '../src/data';
+import { ATLAS_ART } from '../src/data/atlas-art';
 
 const ids = MAP_DATA.regions.map((r) => r.id);
 
@@ -21,23 +22,16 @@ describe('map data', () => {
     expect([...arenas].sort()).toEqual([...ids].sort());
   });
 
-  for (const [name, layout] of Object.entries(MAP_DATA.layouts)) {
-    it(`${name} layout places every region once, inside the drawing, with no overlaps`, () => {
-      expect(Object.keys(layout.tiles).sort()).toEqual([...ids].sort());
-      const boxes = Object.values(layout.tiles).map((t) => ({ ...t, r: t.x + layout.tileWidth, b: t.y + layout.tileHeight }));
-      for (const box of boxes) {
-        expect(box.x).toBeGreaterThanOrEqual(0);
-        expect(box.y).toBeGreaterThanOrEqual(0);
-        expect(box.r).toBeLessThanOrEqual(layout.width);
-        expect(box.b).toBeLessThanOrEqual(layout.height);
-      }
-      for (let i = 0; i < boxes.length; i++) {
-        for (let j = i + 1; j < boxes.length; j++) {
-          const a = boxes[i]!, c = boxes[j]!;
-          const apart = a.r <= c.x || c.r <= a.x || a.b <= c.y || c.b <= a.y;
-          expect(apart).toBe(true);
-        }
-      }
-    });
-  }
+  it('has an original local SVG for the overview and every region', () => {
+    expect(Object.keys(ATLAS_ART).sort()).toEqual(['dry_steppes', 'fractured_peaks', 'hawezar', 'kehjistan', 'nahantu', 'sanctuary', 'scosglen', 'skovos']);
+    for (const svg of Object.values(ATLAS_ART)) {
+      expect(svg).toMatch(/<svg/);
+      expect(svg).not.toMatch(/<(script|image|foreignObject)\b|\b(?:href|src)=["']https?:/i);
+    }
+  });
+
+  it('keeps places without supported display coordinates in the list', () => {
+    expect(MAP_DATA.markers.every((m) => m.position === undefined)).toBe(true);
+    expect(MAP_DATA.markers.some((m) => m.layer === 'waypoint')).toBe(true);
+  });
 });
