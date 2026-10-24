@@ -599,6 +599,10 @@ try {
     await page.eval("[...document.querySelectorAll('.atlas-region')].find(x => x.getAttribute('aria-label').startsWith('Kehjistan')).dispatchEvent(new MouseEvent('click', { bubbles: true }))");
     const panel = await page.eval(text('.map-info'));
     check('selecting a region lists its events with time and confidence', panel.includes('World Boss: Ashava, Kehjistan, 11:00 AM: seen in game (Confirmed)'), panel);
+    const ring = await page.eval("(() => { const g = document.querySelector('.atlas-region.kehjistan'); g.focus(); return getComputedStyle(g).outlineStyle; })()");
+    check('a clicked region shows no focus rectangle', ring === 'none', ring);
+    const keyboard = await page.eval("(() => { const g = document.querySelector('.atlas-region.dry_steppes'); g.focus({ focusVisible: true }); return `${g.matches(':focus-visible')}|${getComputedStyle(g).outlineStyle}|${getComputedStyle(g.querySelector('path')).strokeWidth}`; })()");
+    check('keyboard focus still shows, as the region\'s own outline', keyboard === 'true|none|3px', keyboard);
     check('a marker carries a tooltip with the event, time and confidence', (await page.eval("document.querySelector('.radar-dot.legion title').textContent")).includes('Legion: Kor Dragan, Fractured Peaks, 10:45 AM: seen in game (Confirmed)'));
     await page.emulateMedia([{ name: 'prefers-reduced-motion', value: 'reduce' }]);
     const motion = await page.eval(`(() => { const a = document.querySelector('.atlas-region.radar-helltide path'); const b = document.querySelector('.radar-dot.pulse .ring');
