@@ -10,6 +10,7 @@ import type { DetailReasons } from '../adapters/offline-details';
 import type { EventDefinition, EventKind, TimedSegment } from '../engine/events';
 import { parseFile, type Observation, type ObservedEvent } from '../engine/observations';
 import type { RegisteredRule } from '../engine/prediction';
+import type { Rotation } from '../engine/rotation';
 import { anchorEvidence, MIN_DAYS, MIN_MATCHING } from '../engine/verification';
 import type { MapData, MapMarker, MapRegion } from './map';
 import {
@@ -21,6 +22,17 @@ export const EVENTS = eventsJson as EventsFile;
 export const LOCATIONS = locationsJson as LocationsFile;
 export const SEASONS = seasonsJson as SeasonsFile;
 export const ROTATIONS = rotationsJson as RotationsFile;
+
+const DAY_MS = 86400000;
+const wb = ROTATIONS.worldBoss;
+
+/** The World Boss rotation predictions come from (data/rotations.json). */
+export const WORLD_BOSS_ROTATION: Rotation | undefined = wb && {
+  cycle: wb.cycle,
+  pin: { startMs: Date.parse(wb.pin.start), position: wb.pin.position },
+  holdMs: wb.holdDays * DAY_MS,
+  ...(wb.second ? { second: { regions: wb.second.regions, pin: { startMs: Date.parse(wb.second.pin.start), position: wb.second.pin.position } } } : {}),
+};
 
 /** Orders registered for our sightings to test; none is shown until sightings bear it out. */
 export const REGISTERED_RULES: RegisteredRule[] = ROTATIONS.rules.map((r) => ({
@@ -145,7 +157,7 @@ function buildMap(): MapData {
   ];
   return {
     banner: 'Regional event overview. Locations are approximate; use the in-game map for navigation.',
-    intro: 'A region lights only when its event\'s place is known: seen in game (log it from a card), or predicted by an order your sightings bear out, labeled Inferred. Unlit means not known yet, never "nothing there". Select a region for its events, places and chest spots.',
+    intro: 'A region lights when its event is seen in game (log it from a card) or predicted, labeled Predicted: World Bosses from the boss and arena rotation, re-pinned by what you log. Unlit means not known yet, never "nothing there". Select a region for its events, places and chest spots.',
     regions,
     markers,
   };

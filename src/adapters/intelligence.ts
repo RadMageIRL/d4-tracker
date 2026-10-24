@@ -1,8 +1,10 @@
-// Details from the player's own sightings and from the orders those sightings bear out. For each
-// occurrence, in this order of trust:
+// Details from the player's own sightings and from predictions. For each occurrence, in this order
+// of trust:
 //   1. seen in game for this very occurrence (the player's log, or our shared data)
 //   2. reported to the player by someone else (shown as such, never as seen)
-//   3. predicted from an order that is Inferred or Confirmed (src/engine/prediction.ts)
+//   3. predicted: a World Boss from the rotation in the data (src/engine/rotation.ts), re-pinned by
+//      the player's own sightings; a Helltide region or Legion site from an order the player's
+//      sightings bore out (src/engine/prediction.ts)
 //   4. otherwise unknown, with the reason
 // A sighting belongs to one occurrence, so it stops showing when that event is over.
 //
@@ -11,13 +13,14 @@
 
 import type { EventDetails, EventKind } from '../engine/events';
 import { known, unknown, type Fact } from '../engine/facts';
-import { isSeen, type Observation } from '../engine/observations';
+import { isSeen, occurrenceOf, type Observation } from '../engine/observations';
 import {
   buildModel, observedAt, PAIR_JOIN, predictAt, type RegisteredRule, type SequenceField, type SequenceModel,
 } from '../engine/prediction';
 import type { RadarPrediction } from '../engine/radar';
+import { predictMain, predictSecond, repin, type Rotation, type RotationStep, type Sighted } from '../engine/rotation';
 import type { Occurrence } from '../engine/schedule';
-import type { Segment } from '../engine/segments';
+import { segmentAt, type Segment } from '../engine/segments';
 import type { DetailReasons } from './offline-details';
 import type { DetailsSource } from './types';
 
@@ -36,6 +39,10 @@ export interface IntelligenceInput {
   sites?: { name: string; region: string }[];
   /** A record from the repository's shared data (shown to every visitor), not the player's own. */
   isShared?: (o: Observation) => boolean;
+  /** The World Boss rotation (data/rotations.json); without it no World Boss is predicted. */
+  rotation?: Rotation;
+  /** Double spawns: every how many spawns, and whether a start brings one. */
+  extra?: { every: number; has: (startMs: number) => boolean };
 }
 
 export interface ModelSpec {
@@ -54,12 +61,24 @@ export type Models = Record<string, SequenceModel>;
 export interface Prediction {
   identity?: string;
   location?: string;
+  /** World Boss only: where the second boss of a double spawn appears. */
+  second?: string;
+}
+
+/** The rotation's say on one World Boss spawn. */
+interface RotationCall {
+  main: RotationStep | null;
+  /** The second boss's region, at a double spawn. */
+  second: string | null;
+  /** The pin it was worked out from. */
+  pinMs: number;
 }
 
 export class IntelligenceDetailsSource implements DetailsSource {
   readonly id = 'intelligence';
   readonly label = 'your own sightings, and the orders they bear out (none until enough are logged)';
   private cache = new Map<EventKind, { key: unknown[]; models: Models }>();
+  private rotationCache: { key: unknown; rotation: Rotation | null } | null = null;
   private specList: Record<EventKind, ModelSpec[]>;
   private expansionRegions: Set<string>;
   private expansionArenas: Set<string>;
@@ -72,7 +91,8 @@ export class IntelligenceDetailsSource implements DetailsSource {
     const isBase = (o: Observation) => !!o.region && base.includes(o.region);
     const isExpansion = (o: Observation) => !!o.region && this.expansionRegions.has(o.region);
     this.specList = {
-      worldBoss: [
+      // World Bosses come from the rotation; without one, the player's sightings can find an order.
+      worldBoss: input.rotation ? [] : [
         { key: 'boss', field: 'boss', label: 'Boss order', domain: input.bosses.length, include: (o) => this.isMainSpawn(o) },
         { key: 'place', field: 'place', label: 'Arena order', domain: baseArenas, include: (o) => this.isMainSpawn(o) },
         { key: 'pair', field: 'pair', label: 'Boss and arena order', domain: input.bosses.length * baseArenas, include: (o) => this.isMainSpawn(o) },
@@ -122,11 +142,75 @@ export class IntelligenceDetailsSource implements DetailsSource {
     return models;
   }
 
-  /** What the trusted orders say about the occurrence starting at startMs. */
+  /**
+   * The World Boss rotation as the player's own in-game sightings leave it: each one since the pin
+   * that the rotation did not predict moves it (src/engine/rotation.ts).
+   */
+  rotation(): Rotation | null {
+    const rot = this.input.rotation;
+    if (!rot) return null;
+    const sightings = this.input.sightings();
+    if (this.rotationCache?.key === sightings) return this.rotationCache.rotation;
+    const segs = this.input.segments('worldBoss');
+    const seg = segmentAt(segs, rot.pin.startMs);
+    let rotation: Rotation | null = null;
+    if (seg) {
+      const main: Sighted[] = [];
+      const second: Sighted[] = [];
+      for (const o of sightings) {
+        if (o.event !== 'worldBoss' || o.timing === 'none' || !isSeen(o) || this.input.isShared?.(o)) continue;
+        const occ = occurrenceOf(segs, o);
+        if (!occ || occ.segment.fromMs !== seg.fromMs) continue;
+        const region = o.region ?? (o.place ? this.placeRegion('worldBoss', o.place) : undefined);
+        (this.isMainSpawn(o) ? main : second).push({ startMs: occ.startMs, ...(o.boss ? { boss: o.boss } : {}), ...(region ? { region } : {}) });
+      }
+      const period = seg.schedule.periodMs;
+      rotation = repin(rot, main, second, period, period * (this.input.extra?.every ?? 1));
+    }
+    this.rotationCache = { key: sightings, rotation };
+    return rotation;
+  }
+
+  /** What the rotation says about the World Boss starting at startMs (nothing under another schedule). */
+  private rotationAt(startMs: number): RotationCall | null {
+    const rot = this.rotation();
+    const segs = this.input.segments('worldBoss');
+    const seg = segmentAt(segs, startMs);
+    if (!rot || !seg || segmentAt(segs, rot.pin.startMs)?.fromMs !== seg.fromMs) return null;
+    const period = seg.schedule.periodMs;
+    const extra = this.input.extra;
+    return {
+      main: predictMain(rot, startMs, period),
+      second: extra?.has(startMs) ? predictSecond(rot, startMs, period * extra.every) : null,
+      pinMs: rot.pin.startMs,
+    };
+  }
+
+  /** "Caen Adar, Scosglen": the arena of a region when the data has exactly one there. */
+  private arenaIn(region: string): string {
+    const here = this.input.arenas.filter((a) => a.region === region);
+    return this.placeLabel('worldBoss', here.length === 1 ? here[0]!.name : undefined, region) ?? region;
+  }
+
+  /** For the World Boss card's About section: the pin predictions come from, and until when. */
+  rotationNote(nowMs: number): { pinMs: number; untilMs: number; predicting: boolean } | null {
+    const rot = this.rotation();
+    if (!rot) return null;
+    const untilMs = rot.pin.startMs + rot.holdMs;
+    return { pinMs: rot.pin.startMs, untilMs, predicting: nowMs <= untilMs };
+  }
+
+  /** What the rotation (World Boss) or the trusted orders say about the occurrence starting at startMs. */
   predicted(kind: EventKind, startMs: number, nowMs: number): Prediction {
+    const out: Prediction = {};
+    if (kind === 'worldBoss' && this.input.rotation) {
+      const r = this.rotationAt(startMs);
+      if (r?.main) { out.identity = r.main.boss; out.location = this.arenaIn(r.main.region); }
+      if (r?.second) out.second = this.arenaIn(r.second);
+      return out;
+    }
     const m = this.models(kind, nowMs);
     const at = (key: string) => (m[key] ? predictAt(m[key]!, startMs) : null);
-    const out: Prediction = {};
     if (kind === 'worldBoss') {
       const [pairBoss, pairPlace] = at('pair')?.split(PAIR_JOIN) ?? [];
       const boss = pairBoss ?? at('boss');
@@ -150,6 +234,13 @@ export class IntelligenceDetailsSource implements DetailsSource {
    * event radar. A predicted boss without a predicted place gives no region, so it lights nothing.
    */
   radarPredictions(kind: EventKind, startMs: number, nowMs: number): RadarPrediction[] {
+    if (kind === 'worldBoss' && this.input.rotation) {
+      const r = this.rotationAt(startMs);
+      return [
+        ...(r?.main ? [{ region: r.main.region, boss: r.main.boss, confidence: 'inferred' as const }] : []),
+        ...(r?.second ? [{ region: r.second, extra: true, confidence: 'inferred' as const }] : []),
+      ];
+    }
     const m = this.models(kind, nowMs);
     const trusted = (key: string): { v: string; confidence: 'confirmed' | 'inferred' } | null => {
       const model = m[key];
@@ -224,6 +315,7 @@ export class IntelligenceDetailsSource implements DetailsSource {
     };
     const orElse = (g: { fact: Fact<string> | null; told: string[] }, predicted: Fact<string> | null, fallback: Fact<string>): Fact<string> => {
       if (g.fact) return g.fact;
+      if (predicted?.known && g.told.length) return { ...predicted, source: `${predicted.source}. Reported to you, not checked in game: ${g.told.join(' and ')}.` };
       if (predicted) return predicted;
       if (g.told.length && !fallback.known) {
         return unknown(`${fallback.reason} Reported to you, not checked in game: ${g.told.join(' and ')}.`, `reported: ${g.told.join(' and ')}, not checked`);
@@ -259,6 +351,16 @@ export class IntelligenceDetailsSource implements DetailsSource {
       return { fact, told: [...a.told, ...b.told.map((v) => `also ${v}`)] };
     };
     const where = (o: Observation) => this.placeLabel('worldBoss', o.place, o.region);
+    if (this.input.rotation) {
+      const r = this.rotationAt(occurrence.startMs);
+      const pinned = r ? new Date(r.pinMs).toISOString().slice(0, 16).replace('T', ' ') : '';
+      const fromRotation = (value: string | undefined) =>
+        (value ? known(value, `Predicted from the World Boss rotation, pinned to the spawn of ${pinned} UTC`, 'predicted', 'inferred') : null);
+      const place = p.location ? (p.second ? `${p.location}; also ${p.second}` : p.location) : p.second ? `also ${p.second}` : undefined;
+      const location = orElse(both(where), fromRotation(place), fallbackLocation);
+      const identity = fallbackIdentity ? orElse(both((o) => o.boss), fromRotation(p.identity), fallbackIdentity) : undefined;
+      return withIdentity(location, identity);
+    }
     const location = orElse(both(where), predictedFact(p.location, ['pair', 'place']), fallbackLocation);
     const identity = fallbackIdentity ? orElse(both((o) => o.boss), predictedFact(p.identity, ['pair', 'boss']), fallbackIdentity) : undefined;
     return withIdentity(location, identity);

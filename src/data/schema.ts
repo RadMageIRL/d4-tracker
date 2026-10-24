@@ -209,8 +209,34 @@ export interface ResetRecord {
   sources: Source[];
 }
 
+/** A spawn whose place in a cycle is known. */
+export interface RotationPinRecord {
+  /** ISO UTC start of a World Boss spawn. */
+  start: string;
+  /** Its place in the cycle (or in the list of second-boss regions), from 0. */
+  position: number;
+}
+
+/**
+ * The World Boss rotation predictions come from: one step per spawn, pinned to a known spawn.
+ * Every prediction from it is labeled Predicted.
+ */
+export interface WorldBossRotationRecord {
+  /** The main spawn, in order: the boss by its roster name and its arena's region by id. */
+  cycle: { boss: string; region: string }[];
+  pin: RotationPinRecord;
+  /** How many days after its pin a spawn is predicted. */
+  holdDays: number;
+  /** The second boss of a double spawn: the expansion regions it appears in, in turn. */
+  second?: { regions: string[]; pin: RotationPinRecord };
+  /** A few words on where it came from and how far to trust it. */
+  basis: string;
+  sources: Source[];
+}
+
 export interface RotationsFile {
   checkedOn: string;
+  worldBoss?: WorldBossRotationRecord;
   rules: RuleRecord[];
   resets: ResetRecord[];
 }
@@ -401,6 +427,31 @@ export function checkRotations(f: RotationsFile, events: EventsFile, locations: 
     if (!r.basis) p.add(w, 'needs a basis');
     if (!r.sources.length) p.add(w, 'needs a source');
     r.sources.forEach((s, i) => checkSource(p, `${w} source ${i}`, s));
+  }
+  const wb = f.worldBoss;
+  if (wb) {
+    const w = 'worldBoss rotation';
+    const base = new Set(locations.regions.filter((r) => r.release === 'base').map((r) => r.id));
+    const expansion = new Set(locations.regions.filter((r) => r.release !== 'base').map((r) => r.id));
+    const position = (pin: RotationPinRecord, n: number, where: string) => {
+      if (!isInstant(pin.start)) p.add(where, 'start must be an ISO UTC instant');
+      if (!Number.isInteger(pin.position) || pin.position < 0 || pin.position >= n) p.add(where, `position must be 0 to ${n - 1}`);
+    };
+    if (!wb.cycle.length || wb.cycle.length > 64) p.add(w, 'cycle must have 1 to 64 steps');
+    wb.cycle.forEach((s, i) => {
+      if (!bosses.has(s.boss)) p.add(`${w} step ${i}`, `unknown boss ${s.boss}`);
+      if (!base.has(s.region)) p.add(`${w} step ${i}`, `${s.region} is not a base-game region (the main spawn is in one)`);
+    });
+    position(wb.pin, wb.cycle.length, `${w} pin`);
+    if (!Number.isInteger(wb.holdDays) || wb.holdDays < 1 || wb.holdDays > 28) p.add(w, 'holdDays must be 1 to 28');
+    if (wb.second) {
+      const r = wb.second.regions;
+      if (!r.length || new Set(r).size !== r.length || r.some((x) => !expansion.has(x))) p.add(`${w} second`, 'regions must be distinct expansion region ids');
+      position(wb.second.pin, r.length, `${w} second pin`);
+    }
+    if (!wb.basis) p.add(w, 'needs a basis');
+    if (!wb.sources.length) p.add(w, 'needs a source');
+    wb.sources.forEach((s, i) => checkSource(p, `${w} source ${i}`, s));
   }
   for (const x of f.resets) {
     if (!isInstant(x.at)) p.add(`reset ${x.label}`, 'at must be an ISO UTC instant');

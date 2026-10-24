@@ -23,8 +23,10 @@ export interface CardExtras {
   anchorProgress: string | null;
   /** What the sightings say about each order (boss, arena, region, site). */
   orders: OrderNote[];
-  /** For each later start on the card: a predicted boss or place, or null. */
+  /** For each later start on the card: a short note ("two bosses"), or null. */
   laterNotes: (string | null)[];
+  /** For each later start: its predicted boss or place, or null. Listed under a disclosure. */
+  laterPredictions: (string | null)[];
   /** What was seen at the previous start, for spawns (e.g. "Ashava, seen in game"). */
   lastNote: string | null;
   /** The next start brings a second one at the same time (every fourth World Boss). */
@@ -35,6 +37,8 @@ export interface OrderNote {
   label: string;
   confidence: Confidence;
   text: string;
+  /** Shown instead of the confidence's name, e.g. "Predicted". */
+  status?: string;
 }
 
 // soonMs: how close the next start must be for the card to say Soon instead of Next.
@@ -55,8 +59,8 @@ function when(ms: number, ctx: ViewContext): string {
   return day === 'Today' ? t : `${t} ${day}`;
 }
 
-export function badge(label: string, confidence: Confidence): HTMLElement {
-  return h('span', { class: `badge conf-${confidence}` }, `${label}: ${CONFIDENCE_LABEL[confidence]}`);
+export function badge(label: string, confidence: Confidence, status = CONFIDENCE_LABEL[confidence]): HTMLElement {
+  return h('span', { class: `badge conf-${confidence}` }, `${label}: ${status}`);
 }
 
 /** Just the confidence, for a list where the label would only repeat it. */
@@ -96,7 +100,7 @@ function showFact(row: FactRow, fact: Fact<string> | undefined): void {
   let hint = '';
   if (fact && !fact.known && fact.hint) hint = ` · ${fact.hint}`;
   else if (fact?.known && fact.basis) {
-    hint = ` · ${BASIS_HINT[fact.basis]}${fact.basis === 'predicted' ? ` (${CONFIDENCE_LABEL[fact.confidence ?? 'inferred']})` : ''}`;
+    hint = ` · ${BASIS_HINT[fact.basis]}`;
   }
   setText(row.hint, hint);
   row.dd.title = !fact ? '' : fact.known ? (fact.basis ? fact.source : '') : fact.reason;
@@ -126,6 +130,8 @@ export class EventCard {
   private locationRow: FactRow;
   private extraRow: FactRow | null;
   private list = h('ul', { class: 'next-list', 'aria-label': 'Later' });
+  private predictions = h('ul', {});
+  private predictionsBox = h('details', { class: 'later-predictions', hidden: true }, h('summary', {}, 'Later predictions'), this.predictions);
   private notice = h('p', { class: 'notice' });
   private trust = h('div', { class: 'trust' });
   private logLink: HTMLButtonElement;
@@ -147,6 +153,7 @@ export class EventCard {
       h('div', { class: 'progress', 'aria-hidden': 'true' }, this.bar),
       this.dl,
       this.list,
+      this.predictionsBox,
       this.notice,
       this.trust,
       h('details', { class: 'about' }, h('summary', {}, 'About this card'), this.about),
@@ -211,6 +218,11 @@ export class EventCard {
     const items = st.later.map((o, i) => (extras.laterNotes[i] ? `${when(o.startMs, ctx)} · ${extras.laterNotes[i]}` : when(o.startMs, ctx)));
     const current = [...this.list.children].map((li) => li.textContent);
     if (current.join('|') !== items.join('|')) this.list.replaceChildren(...items.map((t) => h('li', {}, t)));
+    // Predictions for the later starts stay folded away; the next one is in the rows above.
+    const predicted = st.later.flatMap((o, i) => (extras.laterPredictions[i] ? [`${when(o.startMs, ctx)} · ${extras.laterPredictions[i]}`] : []));
+    const shown = [...this.predictions.children].map((li) => li.textContent);
+    if (shown.join('|') !== predicted.join('|')) this.predictions.replaceChildren(...predicted.map((t) => h('li', {}, t)));
+    this.predictionsBox.hidden = !predicted.length;
 
     setText(this.notice, def.notice ?? '');
     this.notice.hidden = !def.notice;
@@ -230,7 +242,7 @@ export class EventCard {
     this.trust.replaceChildren(...nodes(
       seg ? badge('Interval', seg.interval.confidence) : null,
       seg ? badge('Start time', seg.phase.confidence) : null,
-      ...trusted.map((o) => badge(o.label, o.confidence)),
+      ...trusted.map((o) => badge(o.label, o.confidence, o.status)),
       h('span', { class: stale ? 'checked stale' : 'checked' }, `Checked ${ago}`),
       this.logLink,
     ));
@@ -241,7 +253,7 @@ export class EventCard {
       extras.sightings ? h('p', { class: 'claim' }, `Your sightings: ${extras.sightings}`) : null,
       unknowns.length ? h('div', { class: 'claim' }, h('p', {}, badge('Location', 'unknown')),
         ...unknowns.map((u) => h('p', { class: 'source' }, u.reason))) : null,
-      ...extras.orders.map((o) => h('div', { class: 'claim order-note' }, h('p', {}, badge(o.label, o.confidence), ` ${o.text}`))),
+      ...extras.orders.map((o) => h('div', { class: 'claim order-note' }, h('p', {}, badge(o.label, o.confidence, o.status), ` ${o.text}`))),
       h('p', { class: 'muted' }, `Data checked ${st.definition.checkedOn}.${stale ? ' That is a while ago: a patch or a new season may have changed it.' : ''}`),
     ));
   }

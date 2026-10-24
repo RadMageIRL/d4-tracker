@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { IntelligenceDetailsSource } from '../src/adapters/intelligence';
-import { bossNames, DETAIL_REASONS, EVENTS, eventDefinitions, LOCATIONS, REGISTERED_RULES, resetBoundaries } from '../src/data';
+import { bossNames, DETAIL_REASONS, EVENTS, eventDefinitions, LOCATIONS } from '../src/data';
 import { checkEvents, type EventsFile } from '../src/data/schema';
 import { hasExtraSpawn, type EventKind } from '../src/engine/events';
 import type { Observation } from '../src/engine/observations';
-import { buildModel, predictAt } from '../src/engine/prediction';
 
 const defs = eventDefinitions();
 const def = (kind: EventKind) => defs.find((d) => d.kind === kind)!;
@@ -42,56 +41,6 @@ describe('the World Boss double spawn (every fourth spawn)', () => {
     const problems = checkEvents(bad).join('\n');
     expect(problems).toMatch(/anchor must be one of the calculated starts/);
     expect(problems).toMatch(/confirmed needs a Blizzard source or our own in-game observation/);
-  });
-});
-
-describe('the registered 8-spawn order, against our own data', () => {
-  const ORDER = ['Wandering Death', 'Wandering Death', 'Avarice', 'Avarice', 'Ashava', 'Ashava', 'Azmodan', 'Azmodan'];
-  const rules = REGISTERED_RULES.filter((r) => r.id === 'trackers-8-spawn-pairs');
-  const build = (observations: Observation[], nowMs: number) => buildModel({
-    event: 'worldBoss', field: 'boss', observations, segments: def('worldBoss').segments, nowMs,
-    boundariesMs: resetBoundaries(), domainSize: 4, registered: rules,
-  });
-  // A synthetic day shaped like a real one: Ashava seen in game at a spawn, Azmodan predicted for the
-  // next one by a third party and not checked. (On the grid: 2026-10-31 14:30 UTC.)
-  const spawnAt = (k: number) => at('2026-10-31T14:30:00Z') + k * 210 * 60000;
-  const DAY: Observation[] = [
-    { id: 'd1', event: 'worldBoss', at: '2026-10-31T14:30:00Z', timing: 'start', boss: 'Ashava', region: 'kehjistan', thirdParty: 'a tracker page', recordedAt: '2026-10-31T15:00:00Z' },
-    { id: 'd2', event: 'worldBoss', at: '2026-10-31T18:00:00Z', timing: 'start', boss: 'Azmodan', provenance: 'reported', thirdParty: 'a tracker page', recordedAt: '2026-10-31T15:00:00Z' },
-  ];
-  /** Bosses at the spawns after 14:30 on the 24th, following the order at the place today's Ashava and the reported Azmodan imply. */
-  const follow = (ks: number[]): Observation[] => ks.map((k) => ({
-    id: `f${k}`, event: 'worldBoss', at: new Date(spawnAt(k)).toISOString(), timing: 'start', boss: ORDER[(5 + k) % 8]!, recordedAt: new Date(spawnAt(k)).toISOString(),
-  }));
-
-  it('is registered as a hypothesis, not documented', () => {
-    expect(rules).toHaveLength(1);
-    expect(rules[0]!.documented).toBe(false);
-  });
-
-  it('one in-game Ashava fits two places in it, so it is ambiguous and predicts nothing', () => {
-    const m = build(DAY, at('2026-10-31T15:10:00Z'));
-    expect(m.rule?.id).toBe('trackers-8-spawn-pairs');
-    expect(m.state).toBe('ambiguous');
-    expect(m.confidence).toBe('unknown');
-    expect(predictAt(m, at('2026-10-31T18:00:00Z'))).toBeNull();
-  });
-
-  it('a reported Azmodan does not pin it: only sightings checked in game count', () => {
-    expect(build(DAY, at('2026-10-31T19:00:00Z')).state).toBe('ambiguous');
-  });
-
-  it('would be Inferred only after in-game sightings pin it and 4 more come true', () => {
-    // The spawn after Ashava pins the order (Azmodan says Ashava was the second of its pair); each
-    // further one is a prediction.
-    const base = DAY.filter((o) => o.provenance !== 'reported');
-    expect(build([...base, ...follow([1, 2, 3, 4])], spawnAt(5)).state).toBe('testing');
-    const m = build([...base, ...follow([1, 2, 3, 4, 5])], spawnAt(8));
-    expect(m.state).toBe('inferred');
-    expect(predictAt(m, spawnAt(8))).toBe(ORDER[(5 + 8) % 8]);
-    // One miss withdraws it at once.
-    const broken = build([...base, ...follow([1, 2, 3, 4, 5]), { ...follow([8])[0]!, boss: 'Avarice' }], spawnAt(9));
-    expect(broken.confidence).toBe('unknown');
   });
 });
 
@@ -178,6 +127,6 @@ describe('details from sightings', () => {
   it('says Unknown, with the reason, when nothing was seen and no order is trusted', () => {
     const d = source([]).details('worldBoss', spawn, at('2026-10-24T10:30:00Z'));
     expect(d.identity).toMatchObject({ known: false });
-    expect(d.identity && !d.identity.known && d.identity.reason).toMatch(/contradicted by first-hand reports/);
+    expect(d.identity && !d.identity.known && d.identity.reason).toMatch(/Not predicted for this spawn/);
   });
 });

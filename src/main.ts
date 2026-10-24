@@ -6,7 +6,7 @@ import { LocalScheduleSource } from './adapters/local-schedule';
 import type { ScheduleSource } from './adapters/types';
 import {
   bossNames, DETAIL_REASONS, eventDefinitions, EVENTS, knownPlaces, LOCATIONS, MAP_DATA, REGISTERED_RULES, resetBoundaries,
-  SEASONS, SHARED_SIGHTINGS,
+  ROTATIONS, SEASONS, SHARED_SIGHTINGS, WORLD_BOSS_ROTATION,
 } from './data';
 import { chestSpots, chestState, type SharedSpot } from './engine/chests';
 import { detectResume, estimateClock, SAMPLE_GAP_MS, type ClockEstimate, type ClockSample } from './engine/clock';
@@ -32,6 +32,7 @@ import { Timeline } from './ui/timeline';
 
 const scheduleSource: ScheduleSource = new LocalScheduleSource(eventDefinitions());
 const SHARED_IDS = new Set(SHARED_SIGHTINGS.map((o) => o.id));
+const WORLD_BOSS = eventDefinitions().find((d) => d.kind === 'worldBoss');
 const detailsSource = new IntelligenceDetailsSource({
   reasons: DETAIL_REASONS,
   sightings: () => everySighting(),
@@ -43,6 +44,8 @@ const detailsSource = new IntelligenceDetailsSource({
   bosses: bossNames(),
   sites: LOCATIONS.legionSites.map((s) => ({ name: s.name, region: s.region })),
   isShared: (o) => SHARED_IDS.has(o.id),
+  ...(WORLD_BOSS_ROTATION ? { rotation: WORLD_BOSS_ROTATION } : {}),
+  ...(WORLD_BOSS?.extra ? { extra: { every: WORLD_BOSS.extra.every, has: (startMs: number) => hasExtraSpawn(WORLD_BOSS, startMs) } } : {}),
 });
 
 let prefs: Prefs = loadPrefs();
@@ -204,7 +207,19 @@ function orderNotes(kind: EventKind, now: number, timeZone: string): OrderNote[]
     if (m.reported) parts.push(`${m.reported} secondhand report${m.reported === 1 ? '' : 's'} shown but not used.`);
     if (m.older) parts.push(`${m.older} sighting${m.older === 1 ? '' : 's'} from before the current season or schedule not used.`);
     return { label: spec.label, confidence: m.confidence, text: parts.join(' ') };
-  });
+  }).concat(kind === 'worldBoss' ? rotationNotes(now, timeZone) : []);
+}
+
+/** Where World Boss predictions come from, for the card's About section. */
+function rotationNotes(now: number, timeZone: string): OrderNote[] {
+  const r = detailsSource.rotationNote(now);
+  if (!r) return [];
+  const until = calendarDate(r.untilMs, timeZone);
+  const pin = `Pinned to a spawn on ${calendarDate(r.pinMs, timeZone)}`;
+  return [{
+    label: 'Boss and arena', confidence: r.predicting ? 'inferred' : 'unknown', status: r.predicting ? 'Predicted' : 'Not predicted',
+    text: `${ROTATIONS.worldBoss?.basis ?? ''} ${pin}, ${r.predicting ? `predicted through ${until}` : `which ran out on ${until}`}. Log the boss and arena you see in game, and the rotation re-pins to it.`,
+  }];
 }
 
 /** What was seen (not predicted) at an earlier start, for the card's Last line. */
@@ -239,12 +254,16 @@ function logPreset(kind: EventKind): FormPreset {
   };
 }
 
-function laterNotes(st: EventStatus, now: number): (string | null)[] {
+function laterNotes(st: EventStatus): (string | null)[] {
+  return st.later.map((o) => (hasExtraSpawn(st.definition, o.startMs) ? 'two bosses' : null));
+}
+
+/** What is predicted for each later start, for the card's collapsed Later predictions. */
+function laterPredictions(st: EventStatus, now: number): (string | null)[] {
   return st.later.map((o) => {
     const p = detailsSource.predicted(st.kind, o.startMs, now);
-    const text = [p.identity, p.location].filter(Boolean).join(', ');
-    const notes = [hasExtraSpawn(st.definition, o.startMs) ? 'two bosses' : null, text ? `${text} (predicted)` : null].filter(Boolean);
-    return notes.length ? notes.join(' · ') : null;
+    const parts = [[p.identity, p.location].filter(Boolean).join(', '), p.second ? `second boss in ${p.second}` : ''].filter(Boolean);
+    return parts.length ? parts.join('; ') : null;
   });
 }
 
@@ -384,7 +403,8 @@ function render(): void {
       sightings: timingSummary(allSightings, st.definition.segments, st.kind),
       anchorProgress: anchorProgress(anchorEvidence(allSightings, st.definition.segments, st.kind)),
       orders: orderNotes(st.kind, c.nowMs, c.timeZone),
-      laterNotes: laterNotes(st, c.nowMs),
+      laterNotes: laterNotes(st),
+      laterPredictions: laterPredictions(st, c.nowMs),
       lastNote: lastNote(st, c.nowMs),
       extra: extraNote(st),
     });

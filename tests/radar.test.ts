@@ -126,6 +126,17 @@ describe('World Boss and Legion markers', () => {
     expect(lights('2026-10-24T10:40:00Z', [], { predict })).toMatchObject([{ region: 'kehjistan', label: 'Avarice', basis: 'predicted', confidence: 'inferred' }]);
     expect(lights('2026-10-24T10:40:00Z', [ashava], { predict }).map((l) => l.region)).toEqual(['scosglen']);
   });
+
+  it('lights a predicted second boss in its expansion region, flagged, and each spawn seen replaces only its own prediction', () => {
+    const predict = (kind: string): RadarPrediction[] => (kind === 'worldBoss'
+      ? [{ region: 'kehjistan', boss: 'Avarice', confidence: 'inferred' }, { region: 'skovos', extra: true, confidence: 'inferred' }]
+      : []);
+    const summary = (ls: RadarLight[]) => ls.map((l) => [l.region, l.basis, l.extra ?? false]);
+    expect(summary(lights('2026-10-24T10:40:00Z', [], { predict }))).toEqual([['kehjistan', 'predicted', false], ['skovos', 'predicted', true]]);
+    expect(summary(lights('2026-10-24T10:40:00Z', [ashava], { predict }))).toEqual([['scosglen', 'seen', false], ['skovos', 'predicted', true]]);
+    const second = seen({ event: 'worldBoss', at: '2026-10-24T11:00:00Z', boss: 'Avarice', place: 'The Cauldron' });
+    expect(summary(lights('2026-10-24T10:40:00Z', [second], { predict }))).toEqual([['nahantu', 'seen', true], ['kehjistan', 'predicted', false]]);
+  });
 });
 
 describe('the phone summary', () => {

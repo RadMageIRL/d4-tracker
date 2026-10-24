@@ -103,12 +103,12 @@
         "identity": {
           "confidence": "unknown",
           "hint": "named in game before it spawns",
-          "reason": "No rule predicts it: the 8-spawn order other trackers use is contradicted by first-hand reports within a single patch. The in-game map names it about an hour before the spawn; log it and this card shows it for that spawn."
+          "reason": "Not predicted for this spawn: each pin of the World Boss rotation is used for a limited time, because the place in the order has shifted between weeks. The in-game map names the boss about an hour before the spawn; log it, and this card shows it and the rotation re-pins to it."
         },
         "location": {
           "confidence": "unknown",
           "hint": "shown in game before it spawns",
-          "reason": "One of the arenas, one per region (listed in each region's details on the radar). Nobody claims an arena order, and every boss has been reported in several. The in-game map shows which about an hour before the spawn; log it and the card and the radar show it."
+          "reason": "One of the arenas, one per region (listed in each region's details on the radar). Not predicted for this spawn (see Boss). The in-game map shows which about an hour before the spawn; log it and the card and the radar show it."
         }
       },
       "announcedChanges": [],
@@ -151,12 +151,12 @@
         {
           "field": "boss",
           "confidence": "unknown",
-          "note": "Blizzard documents no boss order. Community trackers model an 8-spawn order, but first-hand reports contradict it within one patch: the same spawn time a week apart brought different bosses (2026-09-17 and 09-24). Our sightings can test for an order; a fit would be Inferred at most."
+          "note": "Blizzard documents no boss order. The World Boss rotation (data/rotations.json) predicts it, labeled Predicted; without one, our sightings can test for an order."
         },
         {
           "field": "place",
           "confidence": "unknown",
-          "note": "Blizzard documents no arena order and no guide claims one; every boss has been reported in several arenas. Our sightings can test for one; a fit would be Inferred at most."
+          "note": "Blizzard documents no arena order. The World Boss rotation (data/rotations.json) predicts it, labeled Predicted; without one, our sightings can test for an order."
         }
       ],
       "extraSpawn": {

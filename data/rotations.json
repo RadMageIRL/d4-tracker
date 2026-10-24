@@ -1,21 +1,39 @@
 {
   "checkedOn": "2026-10-24",
-  "rules": [
-    {
-      "id": "trackers-8-spawn-pairs",
-      "event": "worldBoss",
-      "field": "boss",
-      "sequence": ["Wandering Death", "Wandering Death", "Avarice", "Avarice", "Ashava", "Ashava", "Azmodan", "Azmodan"],
-      "anchor": null,
-      "registeredOn": "2026-10-24",
-      "basis": "the 8-spawn order other trackers publish; first-hand reports show its place in the order shifting every few days",
-      "sources": [
-        {
-          "kind": "community",
-          "title": "The World Boss order two community trackers published (read 2026-10-23 and 2026-10-24), registered to be tested, not used. Dated first-hand Blizzard forum reports since December 2025 fit one place in it for two days at most."
-        }
-      ]
-    }
-  ],
+  "worldBoss": {
+    "cycle": [
+      { "boss": "Wandering Death", "region": "dry_steppes" },
+      { "boss": "Wandering Death", "region": "fractured_peaks" },
+      { "boss": "Avarice", "region": "scosglen" },
+      { "boss": "Avarice", "region": "fractured_peaks" },
+      { "boss": "Ashava", "region": "scosglen" },
+      { "boss": "Ashava", "region": "kehjistan" },
+      { "boss": "Azmodan", "region": "scosglen" },
+      { "boss": "Azmodan", "region": "fractured_peaks" }
+    ],
+    "pin": { "start": "2026-10-24T14:30:00Z", "position": 5 },
+    "holdDays": 7,
+    "second": {
+      "regions": ["nahantu", "skovos"],
+      "pin": { "start": "2026-09-18T21:00:00Z", "position": 0 }
+    },
+    "basis": "Predicted, not confirmed: Blizzard documents no order. The boss order and arenas community trackers publish, pinned to a spawn checked in game. First-hand reports show the place in the order shifting between weeks, so each pin is used for 7 days. The second boss of a double spawn takes turns between Nahantu and Skovos; which boss it is varies in first-hand reports, so it is not predicted.",
+    "sources": [
+      {
+        "kind": "community",
+        "title": "The 8-spawn World Boss order and the arena of each spawn that community trackers publish (read 2026-10-23 and 2026-10-24)"
+      },
+      {
+        "kind": "observation",
+        "title": "A World Boss spawn checked in game, used as the pin"
+      },
+      {
+        "kind": "community",
+        "title": "Blizzard forums, first-hand report (2026-09-18): Wandering Death in Nahantu as the second boss of a double spawn",
+        "url": "https://us.forums.blizzard.com/en/d4/t/268021/72"
+      }
+    ]
+  },
+  "rules": [],
   "resets": []
 }

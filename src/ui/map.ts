@@ -196,7 +196,7 @@ export class SanctuaryMap {
 
   /** One line for a light, used in the tooltip and the region panel. */
   private describe(l: RadarLight): string {
-    const how = l.basis === 'seen' ? 'seen in game (Confirmed)' : `predicted (${CONFIDENCE_LABEL[l.confidence]})`;
+    const how = l.basis === 'seen' ? 'seen in game (Confirmed)' : 'Predicted';
     const region = this.data.regions.find((r) => r.id === l.region)?.name ?? l.region;
     if (l.kind === 'helltide') return `Helltide in ${region}, until ${this.at(l.untilMs)}: ${how}`;
     const what = l.kind === 'worldBoss' ? `${l.extra ? 'Second World Boss' : 'World Boss'}${l.label ? `: ${l.label}` : ''}` : `Legion${l.label ? `: ${l.label}` : ''}`;
@@ -228,18 +228,18 @@ export class SanctuaryMap {
       const rows: SVGElement[] = [];
       if (helltide.length) {
         const predicted = helltide.every((l) => l.basis === 'predicted');
-        rows.push(s('text', { class: 'radar-text helltide', 'text-anchor': 'middle' }, `Helltide until ${this.at(helltide[0]!.untilMs)}${predicted ? ' (Inferred)' : ''}`));
+        rows.push(s('text', { class: 'radar-text helltide', 'text-anchor': 'middle' }, `Helltide until ${this.at(helltide[0]!.untilMs)}${predicted ? ' (Predicted)' : ''}`));
       }
       for (const l of spawns) {
         // Short on the map: the boss, or just "Legion" (the site is on the card and in the details).
-        const name = l.kind === 'worldBoss' ? (l.label ?? 'World Boss') : 'Legion';
+        const name = l.kind === 'worldBoss' ? (l.label ?? (l.extra ? 'Second World Boss' : 'World Boss')) : 'Legion';
         const dot = s('g', {
           class: `radar-dot ${l.kind === 'worldBoss' ? 'boss' : 'legion'}${this.pulsing(l, now) ? ' pulse' : ''}${l.basis === 'predicted' ? ' inferred' : ''}`,
           'data-region': r.id,
         },
           s('title', {}, this.describe(l)),
           s('circle', { class: 'ring', r: 8 }), s('circle', { class: 'core', r: 6 }),
-          s('text', { class: 'radar-text', x: 12, y: 4 }, `${name} ${this.at(l.startMs)}${l.basis === 'predicted' ? ' (Inferred)' : ''}`));
+          s('text', { class: 'radar-text', x: 12, y: 4 }, `${name} ${this.at(l.startMs)}${l.basis === 'predicted' ? ' (Predicted)' : ''}`));
         activate(dot, () => { this.focus = r.id; this.showFocus(r.id); });
         rows.push(dot);
       }
@@ -265,7 +265,7 @@ export class SanctuaryMap {
     const lines = summaryLines(lights);
     if (!lines.length) return null;
     const regionName = (id: string) => this.data.regions.find((r) => r.id === id)?.name ?? id;
-    const inferred = (l: RadarLight) => (l.basis === 'predicted' ? ' (Inferred)' : '');
+    const inferred = (l: RadarLight) => (l.basis === 'predicted' ? ' (Predicted)' : '');
     const text = (line: SummaryLine): string => {
       const ls = line.lights;
       if (line.kind === 'helltide') {
@@ -305,7 +305,7 @@ export class SanctuaryMap {
       h('h3', {}, r.name),
       here.length
         ? h('ul', { class: 'radar-events' }, ...here.map((l) => h('li', { class: l.kind }, this.describe(l))))
-        : h('p', { class: 'muted' }, 'Nothing known here right now. A region lights only when its event was seen in game or is predicted by an order your sightings bear out.'),
+        : h('p', { class: 'muted' }, 'Nothing known here right now. A region lights when its event was seen in game or is predicted.'),
       h('div', { class: 'options' }, places, all),
     ));
   }
@@ -386,7 +386,7 @@ export class SanctuaryMap {
     this.info.replaceChildren(...nodes(
       h('h3', {}, r.name),
       h('p', { class: 'muted' }, `${r.terrain}. ${r.note}`),
-      now ? h('p', { class: 'helltide-now' }, `Helltide here now: ${now.basis === 'seen' ? 'you saw it during this Helltide' : `predicted (${CONFIDENCE_LABEL[now.confidence]})`}. It clears when this Helltide ends.`) : null,
+      now ? h('p', { class: 'helltide-now' }, `Helltide here now: ${now.basis === 'seen' ? 'you saw it during this Helltide' : 'Predicted'}. It clears when this Helltide ends.`) : null,
       r.helltide && this.hooks.layers().helltide ? h('p', {}, r.helltideNote) : null,
       markers.length
         ? h('ul', { class: 'atlas-location-list' }, ...markers.map((m) => {

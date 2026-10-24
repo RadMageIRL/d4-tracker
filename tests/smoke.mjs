@@ -124,14 +124,30 @@ try {
     const lastWb = await page.eval(`[...document.querySelectorAll('.event[data-kind="worldBoss"] dd')].map(d => d.textContent).join('|')`);
     check('world boss last spawn 14:30 UTC, about 30 min ago', /2:30\s?PM \((29|30) min ago\)/.test(lastWb), lastWb);
     const unknowns = await page.eval(`[...document.querySelectorAll('.facts dd.unknown')].map(d => d.firstChild.textContent)`);
-    check('region, boss and locations show as Unknown', unknowns.length === 4 && unknowns.every((t) => t === 'Unknown'), JSON.stringify(unknowns));
+    check('the Helltide region and the Legion site show as Unknown', unknowns.length === 2 && unknowns.every((t) => t === 'Unknown'), JSON.stringify(unknowns));
+    const predicted = await page.eval(`[...document.querySelectorAll('.event[data-kind="worldBoss"] .facts dd.basis-predicted')].map(d => d.textContent)`);
+    check('the next World Boss shows the predicted boss and arena, labeled predicted', predicted.length === 2 && predicted[0] === 'Azmodan · predicted' && predicted[1] === 'Caen Adar, Scosglen · predicted', JSON.stringify(predicted));
+    const laterList = await page.eval(`[...document.querySelectorAll('.event[data-kind="worldBoss"] .next-list li')].map(li => li.textContent).join(' | ')`);
+    check('the later spawns stay short: times, and "two bosses" on a double spawn', laterList === '9:30 PM | 1:00 AM Tomorrow · two bosses | 4:30 AM Tomorrow', laterList);
+    const folded = await page.eval(`(() => { const d = document.querySelector('.event[data-kind="worldBoss"] details.later-predictions');
+      return d ? { hidden: d.hidden, open: d.open, summary: d.querySelector('summary').textContent, items: [...d.querySelectorAll('li')].map(li => li.textContent),
+        itemShown: d.querySelector('li').checkVisibility() } : null; })()`);
+    check('later predictions are folded away under a disclosure', !!folded && !folded.hidden && !folded.open && !folded.itemShown && folded.summary === 'Later predictions', JSON.stringify(folded));
+    const opened = await page.eval(`(() => { const d = document.querySelector('.event[data-kind="worldBoss"] details.later-predictions'); d.open = true;
+      const shown = d.querySelector('li').checkVisibility(); d.open = false; return shown; })()`);
+    check('opening it shows them', opened === true, String(opened));
+    check('and list each later spawn\'s predicted boss and arena, the second boss\'s region too', JSON.stringify(folded?.items) === JSON.stringify([
+      '9:30 PM · Azmodan, The Crucible, Fractured Peaks',
+      '1:00 AM Tomorrow · Wandering Death, Saraan Caldera, Dry Steppes; second boss in The Cauldron, Nahantu',
+      '4:30 AM Tomorrow · Wandering Death, The Crucible, Fractured Peaks']), JSON.stringify(folded?.items));
+    check('cards with nothing predicted have no disclosure', await page.eval(`[...document.querySelectorAll('.event:not([data-kind="worldBoss"]) details.later-predictions')].every(d => d.hidden)`));
     const rows = await page.eval(`[...document.querySelectorAll('.facts dd.unknown')].map(d => ({
       hint: d.querySelector('.hint').textContent, reason: d.title, height: d.getBoundingClientRect().height,
       line: parseFloat(getComputedStyle(d).lineHeight) }))`);
     check('each Unknown has a short hint and its full reason on hover', rows.every((r) => r.hint.startsWith(' · ') && r.reason.length > 30), JSON.stringify(rows));
     check('each Unknown takes one line', rows.every((r) => r.height <= r.line * 1.2), JSON.stringify(rows.map((r) => [r.height, r.line])));
     const about = await page.eval(`document.querySelector('.event[data-kind="worldBoss"] details.about').textContent`);
-    check('the full reasons and order notes are under About', about.includes('contradicted by first-hand reports') && about.includes('Boss order: Unknown'), about.slice(0, 300));
+    check('About says where the World Boss prediction comes from and until when', about.includes('Boss and arena: Predicted') && about.includes('Pinned to a spawn on Oct 24, 2026, predicted through Oct 31, 2026'), about.slice(-700));
     check('an inferred start time shows what confirms it', about.includes(progressText(sharedStarts('worldBoss'))), about.slice(0, 400));
     const link = await page.eval(`[...document.querySelectorAll('footer a')].map(a => a.href)`);
     check('footer links to radmagelabs.com', link.includes('https://radmagelabs.com/'), JSON.stringify(link));
@@ -467,14 +483,18 @@ try {
     check('a boss you logged for this spawn shows as seen', boss.startsWith('Ashava') && boss.includes('seen in game'), boss);
     check('its arena shows as seen', (await page.eval(row('worldBoss', 'Location'))).startsWith('Caen Adar'));
     await advance(page, 45 * 60000);
-    await page.waitFor(`${row('worldBoss', 'Boss')}.startsWith('Unknown')`, 4000).catch(() => {});
-    check('after the spawn the next one is Unknown again', (await page.eval(row('worldBoss', 'Boss'))).startsWith('Unknown'));
+    await page.waitFor(`${row('worldBoss', 'Boss')}.includes('predicted')`, 4000).catch(() => {});
+    // Ashava at Caen Adar re-pins the rotation: the next spawn is the second Ashava, in Kehjistan.
+    const next = await page.eval(row('worldBoss', 'Boss'));
+    check('after the spawn the next one is predicted from the boss you saw', next === 'Ashava · predicted', next);
     check('the Last line keeps what was seen', (await page.eval(row('worldBoss', 'Last'))).includes('Ashava, Caen Adar, Scosglen (seen)'), await page.eval(row('worldBoss', 'Last')));
     await page.close();
     const told = await open('2026-10-26T07:50:00Z', { timezone: 'UTC', before: seed([{ ...list[0], id: 'wb2', provenance: 'reported' }]) });
     const reported = await told.eval(row('worldBoss', 'Boss'));
-    check('a secondhand report stays Unknown with a "reported, not checked" note, never shown as seen', reported.startsWith('Unknown') && reported.includes('reported: Ashava, not checked') && !reported.includes('seen in game'), reported);
-    check('no prediction is shown without a tested order', !(await told.eval(text('.event[data-kind="worldBoss"]'))).includes('predicted'));
+    // Not checked in game, so it neither shows as seen nor moves the rotation: 08:30 stays Wandering Death.
+    check('a secondhand report is never shown as seen and does not move the prediction', reported === 'Wandering Death · predicted', reported);
+    const title = await told.eval(`([...document.querySelectorAll('.event[data-kind="worldBoss"] .facts dt')].find(d => d.textContent === 'Boss')?.nextElementSibling?.title ?? '')`);
+    check('the report is kept in the prediction\'s note', title.includes('Reported to you, not checked in game: Ashava'), title);
     await told.close();
   }
 
@@ -613,6 +633,21 @@ try {
     check('turning World Bosses off removes their dots, and is remembered', !(await dots(page)).includes('boss') && await page.eval("JSON.parse(localStorage.getItem('d4-tracker:v1:prefs')).radar.worldBoss === false"));
     if (shots) await page.screenshot(join(shots, 'radar.png'), { height: 1240 });
     await page.close();
+
+    // Predictions light the radar too, labeled Predicted: the rotation's next boss and arena, and at a
+    // double spawn the second boss's expansion region. (Fresh prefs: World Bosses were just switched off.)
+    const ahead = await open('2026-10-24T17:40:00Z', { timezone: 'UTC', prefs: {}, before: "localStorage.removeItem('d4-tracker:v1:observations')" });
+    check('a predicted World Boss lights its arena\'s region, marked as predicted', (await dots(ahead)) === 'boss:scosglen:true'
+      && await ahead.eval("document.querySelector('.radar-dot.boss').classList.contains('inferred')"), await dots(ahead));
+    check('its label names the boss and says Predicted', (await ahead.eval(text('.radar-dot.boss .radar-text'))) === 'Azmodan 6:00 PM (Predicted)', await ahead.eval(text('.radar-dot.boss .radar-text')));
+    check('the card predicts the same boss and arena', (await ahead.eval(row('worldBoss', 'Location'))) === 'Caen Adar, Scosglen · predicted', await ahead.eval(row('worldBoss', 'Location')));
+    if (shots) await ahead.screenshot(join(shots, 'radar-predicted.png'), { height: 1240 });
+    await ahead.close();
+    const double = await open('2026-10-25T00:40:00Z', { timezone: 'UTC', width: 390, height: 844, mobile: true, prefs: {}, before: "localStorage.removeItem('d4-tracker:v1:observations')" });
+    check('a double spawn lights both predicted regions', (await dots(double)) === 'boss:dry_steppes:true,boss:nahantu:true', await dots(double));
+    const line = await double.eval("[...document.querySelectorAll('.radar-summary li')].filter(li => li.offsetParent !== null).map(li => li.textContent).join(' | ')");
+    check('the phone summary lists both, as predicted', line.includes('Wandering Death, Dry Steppes (Predicted)') && line.includes('Nahantu (Predicted)'), line);
+    await double.close();
 
     // Lead-up windows and expiry: 40 minutes before the World Boss nothing shows; the Legion 25 minutes out does not either.
     const early = await open('2026-10-24T10:20:00Z', { timezone: 'UTC', before: seed(scene) });

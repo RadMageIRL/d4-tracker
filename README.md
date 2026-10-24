@@ -25,9 +25,9 @@ Live at https://radmagelabs.com/d4/
 - **Sanctuary Event Radar.** The seven regions at a glance: a region with a Helltide on breathes
   orange-red, the next World Boss is a gold dot with its boss and time (from 30 minutes before, or
   15 or 60 as you choose), the next Legion a violet dot (from 10 minutes before). A marker pulses
-  only when its event is close. A region lights only when its event's place is known, the same as
-  on the cards: seen in game, or predicted by an order your sightings bear out (labeled Inferred).
-  Unlit means not known yet. On a phone the same events are written out under it, one line each.
+  only when its event is close. A region lights when its event's place is seen in game or
+  predicted (labeled Predicted), the same as on the cards. Unlit means not known yet. On a phone
+  the same events are written out under it, one line each.
   Regions sit where published descriptions place them (a test checks each), but it is a regional
   overview, not a navigation map.
 - **Places and chest spots** (a region's details, secondary): its waypoints, World Boss arena and
@@ -35,8 +35,8 @@ Live at https://radmagelabs.com/d4/
   you see it and it shows as active until the chests move (players report about half an hour in)
   or the Helltide ends; otherwise it says "not verified now", never "inactive".
 - **Sightings.** Log what you see in game (a spawn time, the boss, the arena, the Helltide region,
-  a chest spot). The tracker checks your times against its schedule and tests for repeating
-  orders, and says when there is not enough data to tell.
+  a chest spot). The tracker checks your times against its schedule, re-pins the World Boss
+  rotation to what you saw, and tests for other repeating orders.
 - **Reminders.** World Boss 15, 10 or 5 minutes before, Legion 5 minutes before, Helltide when it
   begins, in the page and, if you allow them, as system notifications.
 - **Tab title.** The next event's countdown (or a chosen event's) in the browser tab.
@@ -70,8 +70,17 @@ an expansion region. That is Inferred: Blizzard does not document it, and every 
 report of two at once on Blizzard's forums, from October 2024 to September 2026, falls on these
 spawns.
 
-Places and orders are separate questions. One sighting confirms that a place exists and is used.
-A repeating order of places or bosses is never Confirmed from sightings, however many: only
+**Predicted** marks a World Boss's boss and arena worked out from a rotation rather than seen.
+Blizzard documents no order, so a prediction is never Confirmed and can be wrong. The tracker
+follows the 8-spawn boss order community trackers publish, with the arena of each spawn, pinned to
+a spawn checked in game (`data/rotations.json`). First-hand reports show the place in that order
+shifting between weeks, so each pin is used for 7 days; after that the card says Unknown until the
+next pin. Log the boss and arena you see in game and the rotation re-pins to it, in your browser.
+Every fourth spawn's second boss takes turns between Nahantu and Skovos; which boss it is, is not
+predicted.
+
+For Helltide regions and Legion sites nothing documents an order. One sighting confirms that a
+place exists and is used. A repeating order is never Confirmed from sightings, however many: only
 Blizzard's own words could confirm it. An order found in sightings becomes Inferred only after it
 predicts later sightings: **at least three correct predictions, none wrong, on sightings it was not
 found in, with a lucky match under 1%** (judged against a guesser who knows how often each value
@@ -84,11 +93,11 @@ schedule is added with that date and the switch happens on its own.
 
 ## What it does not know
 
-- **Which region has the Helltide**, **which World Boss and arena**, and **where the Legion is.**
-  No source, Blizzard's or a player's, documents an order for any of them, and first-hand reports
-  contradict the World Boss order other trackers use (the same spawn time a week apart, inside
-  one patch, brought different bosses). The game shows them shortly before or as they start: log
-  them and the cards show them. If an order exists, logged sightings will find it.
+- **Which region has the Helltide** and **where the Legion is.** No source, Blizzard's or a
+  player's, documents an order for either. The game shows them shortly before or as they start:
+  log them and the cards show them. If an order exists, logged sightings will find it.
+- **Which World Boss and arena, for certain.** They are predicted, not known: the order has
+  shifted between weeks before, and a prediction is wrong until the rotation is re-pinned.
 - **Which chests are active right now.** Chest spots are a fixed set in each Helltide zone and the
   active ones move during a Helltide, by players' reports. Only someone in that Helltide can say
   which are active; a region's details keep the spots you log and let you mark the active ones.
@@ -125,9 +134,9 @@ region, place, boss or chest type, the realm and Hardcore, and whether you saw i
 someone told you, in your browser only. What someone told you is shown as reported and never used
 as evidence. **Export** saves them as a JSON file (version 2; version 1 files still import);
 **Import** merges a file back, skips duplicates and refuses records it cannot read. Sightings added
-to `data/observations.json` in this repository are loaded for everyone. Orders someone describes
-can be added to `data/rotations.json` to be tested; they show only once later sightings bear them
-out.
+to `data/observations.json` in this repository are loaded for everyone. A World Boss you saw
+yourself re-pins the rotation; a reported one does not. Orders someone describes can be added to
+`data/rotations.json` to be tested; they show only once later sightings bear them out.
 
 The analysis is deliberately cautious. A start time more than 2 minutes from the schedule is
 flagged. An order is looked for only when every position in a cycle has been seen at least twice,
@@ -167,11 +176,11 @@ and that no request leaves the site. `-- --shots DIR` saves screenshots.
 Layout:
 
 ```
-data/          the tracker's own data: events, seasons, locations, orders to test, shared sightings (JSON)
+data/          the tracker's own data: events, seasons, locations, the World Boss rotation, shared sightings (JSON)
 src/data/      the data's types and checks (a bad edit fails the build) and loader
-src/engine/    schedules, event state, seasons, clock check, reminders, sightings analysis, order
-               predictions, chest spots, title
-src/adapters/  where data comes from: local schedules; details from sightings and tested orders
+src/engine/    schedules, event state, seasons, clock check, reminders, sightings analysis, the
+               World Boss rotation, order predictions, chest spots, title
+src/adapters/  where data comes from: local schedules; details from sightings and predictions
 src/ui/        cards, timeline, season panel, map, sightings, settings, notifications
 src/store/     preferences and sightings in localStorage (key prefix d4-tracker:v1:)
 tests/         unit tests, fixtures and the browser smoke test
@@ -187,9 +196,10 @@ long ago it was checked and flags anything older than 60 days. After a patch or 
   change goes live.
 - `data/locations.json`: add waypoints, arenas, Legion sites or chest spots, marked Confirmed only
   with a Blizzard quote or our own sighting (a chest spot only with our own sighting).
-- `data/rotations.json`: register an order someone describes, with its source and the day it was
-  added; only sightings after that day test it. Add a reset when a patch is known to restart an
-  order.
+- `data/rotations.json`: when a World Boss is seen in game that the rotation got wrong, move the
+  pin to that spawn (`pin.start` and its `position` in the cycle); when a pin runs out, add a new
+  one. Register an order someone describes, with its source and the day it was added; only
+  sightings after that day test it. Add a reset when a patch is known to restart an order.
 
 `npm test` checks every file: confirmed claims need a Blizzard source (with its quoted words) or
 our own observation, dates must be UTC instants, schedules must not overlap, season times must fall

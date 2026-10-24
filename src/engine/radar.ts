@@ -1,14 +1,14 @@
 // The event radar: which regions of the overview to light, and why.
 //
-// The one rule that matters most is never lighting the wrong region. A region lights only when its
-// event is known for that very occurrence:
+// A region lights when its event is known or predicted for that very occurrence:
 //   - seen: a sighting the player checked in game names the region (or the arena or site, whose
 //     region is then known), for this Helltide or this spawn; or
-//   - predicted: an order the sightings have borne out (src/engine/prediction.ts) gives it,
-//     labeled Inferred.
-// Never from a secondhand report, an unchecked third-party prediction, a record in the shared
-// data, or a sighting of another occurrence; and never because a region merely has a possible
-// arena or Legion site. A light goes out when its event is over.
+//   - predicted: the World Boss rotation (src/engine/rotation.ts), or an order the player's
+//     sightings bore out (src/engine/prediction.ts), gives it, labeled Predicted.
+// What was seen of an occurrence always wins over a prediction of it. Never from a secondhand
+// report, an unchecked third-party prediction, a record in the shared data, or a sighting of
+// another occurrence; and never because a region merely has a possible arena or Legion site. A
+// light goes out when its event is over.
 
 import { isSeen, occurrenceOf, type Observation } from './observations';
 import { activeOccurrence, startsInRange, type Segment } from './segments';
@@ -35,6 +35,8 @@ export interface RadarPrediction {
   /** An arena or site name; its region is looked up. */
   place?: string;
   boss?: string;
+  /** World Boss only: the second boss of a double spawn. */
+  extra?: boolean;
   confidence: 'confirmed' | 'inferred';
 }
 
@@ -46,7 +48,7 @@ export interface RadarInput {
   leadMs: { worldBoss: number; legion: number };
   /** How long after a spawn its marker stays (the fight or event is under way). */
   graceMs: { worldBoss: number; legion: number };
-  /** Trusted predictions for an occurrence: only orders that are Inferred or Confirmed. */
+  /** Predictions for an occurrence: the World Boss rotation, and orders that are Inferred or Confirmed. */
   predict: (kind: RadarKind, startMs: number) => RadarPrediction[];
   /** The region of a named World Boss arena or Legion site. */
   placeRegion: (kind: RadarKind, place: string) => string | undefined;
@@ -116,6 +118,7 @@ export function radarLights(input: RadarInput): RadarLight[] {
       const untilMs = occ.startMs + grace;
       const lit = new Set<string>();
       let mainKnown = false;
+      let extraKnown = false;
       for (const o of input.sightings) {
         if (o.event !== kind || o.timing === 'none' || !trusted(o, input)) continue;
         if (occurrenceOf(input.segments[kind], o)?.startMs !== occ.startMs) continue;
@@ -125,20 +128,27 @@ export function radarLights(input: RadarInput): RadarLight[] {
         const key = `${region}|${extra}`;
         if (lit.has(key)) continue;
         lit.add(key);
-        if (!extra) mainKnown = true;
+        if (extra) extraKnown = true;
+        else mainKnown = true;
         const label = kind === 'worldBoss' ? o.boss : o.place;
         out.push({
           kind, region, startMs: occ.startMs, untilMs, basis: 'seen', confidence: 'confirmed',
           ...(label ? { label } : {}), ...(extra ? { extra } : {}),
         });
       }
-      if (mainKnown) continue;
       for (const p of input.predict(kind, occ.startMs)) {
+        const extra = kind === 'worldBoss' && !!p.extra;
+        // A spawn seen in game is not predicted over.
+        if (extra ? extraKnown : mainKnown) continue;
         const region = p.region ?? (p.place ? input.placeRegion(kind, p.place) : undefined);
-        if (!region || lit.has(`${region}|false`)) continue;
-        lit.add(`${region}|false`);
+        const key = `${region}|${extra}`;
+        if (!region || lit.has(key)) continue;
+        lit.add(key);
         const label = kind === 'worldBoss' ? p.boss : p.place;
-        out.push({ kind, region, startMs: occ.startMs, untilMs, basis: 'predicted', confidence: p.confidence, ...(label ? { label } : {}) });
+        out.push({
+          kind, region, startMs: occ.startMs, untilMs, basis: 'predicted', confidence: p.confidence,
+          ...(label ? { label } : {}), ...(extra ? { extra } : {}),
+        });
       }
     }
   }

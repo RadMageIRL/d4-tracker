@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.5.0 (unreleased)
+
+- World Boss predictions. The card names the boss and arena of the next spawn, labeled Predicted
+  (later spawns' predictions are folded under "Later predictions"), and the Event Radar lights the
+  arena's region with a gold dot marked (Predicted). They follow the 8-spawn boss order community
+  trackers publish, with each spawn's arena, pinned to a spawn checked in game; each pin is used
+  for 7 days, because first-hand reports show the order shifting between weeks. At a double spawn the second boss's region is predicted too (Nahantu and
+  Skovos in turn); which boss it is, is not.
+- What you see beats what is predicted: a boss you log for a spawn shows as seen, and the rotation
+  re-pins to it in your browser. A boss someone told you about does neither; it stays in the
+  prediction's note.
+- Predictions say Predicted everywhere (cards, radar, phone summary), instead of Inferred.
+
 ## v0.4.0 (2026-10-24)
 
 - What you log shows on the cards: the boss and arena you logged for a World Boss spawn, the
