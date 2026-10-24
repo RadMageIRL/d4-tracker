@@ -1,17 +1,8 @@
 # Changelog
 
-## Unreleased
+## v0.2.0 (2026-10-23)
 
-- Fix: on GitHub Pages the clock check could "correct" a right clock by up to the age of the cached
-  copy (seen live: 8 and 13 seconds, growing to as much as 10 minutes), moving every countdown by
-  that much. The cache in front of Pages sends the current time in Date together with the copy's
-  Age; the check had assumed Date was the copy's original time. It now takes two readings 5 seconds
-  apart and trusts a server time only if it moved in step with real time: Date when it advances,
-  Date plus Age when only that advances. Frozen, jumping or malformed answers correct nothing.
-- The browser tests serve the page the way five kinds of server answer: no cache, a cache like
-  GitHub's, a standard cache, a stale cache without Age, and inconsistent headers.
-
-## v0.2 (2026-10-23)
+First public release, at radmagelabs.com/d4/ and radmageirl.github.io/d4-tracker/.
 
 - Independence: every timer comes from rules kept in this repository (data/*.json); the page names
   and links no other tracker, and a test enforces it. The season panel links only Blizzard's pages.
@@ -32,8 +23,13 @@
   soonest event gets a quiet outline.
 - Tab title countdown: the next event, or a chosen one, or off. Whole minutes in a background tab.
 - Pop out: a small compact window for a second monitor, without changing the main window's view.
-- Clock check: corrects for responses a cache has held (the Age header), and checks again after
-  the computer wakes or its clock is changed.
+- Clock check: takes two readings of its own server's time 5 seconds apart and trusts a server time
+  only if it moved in step with real time: Date when it advances, Date plus Age when only that
+  advances (the cache in front of GitHub Pages sends the current time in Date together with the
+  copy's Age). Frozen, jumping or malformed answers correct nothing. It checks again after the
+  computer wakes or its clock is changed.
+- The browser tests serve the page the way five kinds of server answer: no cache, a cache like
+  GitHub's, a standard cache, a stale cache without Age, and inconsistent headers.
 - The time zone is read live, so changing it while the page is open takes effect at once.
 - Long-open tabs no longer keep every reminder they have fired.
 - Renamed to d4-tracker (storage keys d4-tracker:v1:).
