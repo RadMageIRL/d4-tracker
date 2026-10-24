@@ -1,0 +1,223 @@
+{
+  "checkedOn": "2026-10-23",
+  "seasons": [
+    {
+      "number": 1,
+      "name": "Season of the Malignant",
+      "startDate": "2023-07-20",
+      "startUtc": "2023-07-20T17:00:00Z",
+      "confidence": "inferred",
+      "sources": [
+        {
+          "kind": "community",
+          "title": "Fextralife, vaultalts.com and ggseason.com season lists agree on the date; the hour is from vaultalts.com, which cites Blizzard's announcements (research 2026-10-23)"
+        }
+      ]
+    },
+    {
+      "number": 2,
+      "name": "Season of Blood",
+      "startDate": "2023-10-17",
+      "startUtc": "2023-10-17T17:00:00Z",
+      "confidence": "inferred",
+      "sources": [
+        {
+          "kind": "community",
+          "title": "Fextralife, vaultalts.com and ggseason.com season lists agree on the date; the hour is from vaultalts.com, which cites Blizzard's announcements (research 2026-10-23)"
+        }
+      ]
+    },
+    {
+      "number": 3,
+      "name": "Season of the Construct",
+      "startDate": "2024-01-23",
+      "startUtc": "2024-01-23T18:00:00Z",
+      "confidence": "inferred",
+      "sources": [
+        {
+          "kind": "community",
+          "title": "Fextralife, vaultalts.com and ggseason.com season lists agree on the date; the hour is from vaultalts.com, which cites Blizzard's announcements (research 2026-10-23)"
+        }
+      ]
+    },
+    {
+      "number": 4,
+      "name": "Loot Reborn",
+      "startDate": "2024-05-14",
+      "startUtc": "2024-05-14T17:00:00Z",
+      "confidence": "inferred",
+      "sources": [
+        {
+          "kind": "community",
+          "title": "Fextralife, vaultalts.com and ggseason.com season lists agree on the date; the hour is from vaultalts.com, which cites Blizzard's announcements (research 2026-10-23)"
+        }
+      ]
+    },
+    {
+      "number": 5,
+      "name": "Season of the Infernal Hordes",
+      "startDate": "2024-08-06",
+      "startUtc": "2024-08-06T17:00:00Z",
+      "confidence": "inferred",
+      "sources": [
+        {
+          "kind": "community",
+          "title": "Fextralife, vaultalts.com and ggseason.com season lists agree on the date; the hour is from vaultalts.com, which cites Blizzard's announcements (research 2026-10-23)"
+        }
+      ]
+    },
+    {
+      "number": 6,
+      "name": "Season of Hatred Rising",
+      "startDate": "2024-10-07",
+      "startUtc": "2024-10-07T23:00:00Z",
+      "note": "With Vessel of Hatred",
+      "confidence": "inferred",
+      "sources": [
+        {
+          "kind": "community",
+          "title": "Fextralife, vaultalts.com and ggseason.com season lists agree on the date; the hour is from vaultalts.com, which cites Blizzard's announcements (research 2026-10-23)"
+        }
+      ]
+    },
+    {
+      "number": 7,
+      "name": "Season of Witchcraft",
+      "startDate": "2025-01-21",
+      "startUtc": "2025-01-21T18:00:00Z",
+      "confidence": "inferred",
+      "sources": [
+        {
+          "kind": "community",
+          "title": "Fextralife, vaultalts.com and ggseason.com season lists agree on the date; the hour is from vaultalts.com, which cites Blizzard's announcements (research 2026-10-23)"
+        }
+      ]
+    },
+    {
+      "number": 8,
+      "name": "Belial's Return",
+      "startDate": "2025-04-29",
+      "startUtc": "2025-04-29T17:00:00Z",
+      "confidence": "inferred",
+      "sources": [
+        {
+          "kind": "community",
+          "title": "Fextralife, vaultalts.com and ggseason.com season lists agree on the date; the hour is from vaultalts.com, which cites Blizzard's announcements (research 2026-10-23)"
+        }
+      ]
+    },
+    {
+      "number": 9,
+      "name": "Sins of the Horadrim",
+      "startDate": "2025-07-01",
+      "confidence": "inferred",
+      "sources": [
+        {
+          "kind": "community",
+          "title": "Fextralife, vaultalts.com and ggseason.com season lists agree on the date; the hour is from vaultalts.com, which cites Blizzard's announcements (research 2026-10-23)"
+        }
+      ]
+    },
+    {
+      "number": 10,
+      "name": "Season of Infernal Chaos",
+      "startDate": "2025-09-23",
+      "confidence": "inferred",
+      "sources": [
+        {
+          "kind": "community",
+          "title": "Fextralife, vaultalts.com and ggseason.com season lists agree on the date; the hour is from vaultalts.com, which cites Blizzard's announcements (research 2026-10-23)"
+        }
+      ]
+    },
+    {
+      "number": 11,
+      "name": "Season of Divine Intervention",
+      "startDate": "2025-12-11",
+      "startUtc": "2025-12-12T04:30:00Z",
+      "confidence": "inferred",
+      "sources": [
+        {
+          "kind": "community",
+          "title": "Fextralife, vaultalts.com and ggseason.com season lists agree on the date; the hour is from vaultalts.com, which cites Blizzard's announcements (research 2026-10-23)"
+        }
+      ]
+    },
+    {
+      "number": 12,
+      "name": "Season of Slaughter",
+      "startDate": "2026-03-11",
+      "startUtc": "2026-03-11T17:00:00Z",
+      "confidence": "inferred",
+      "sources": [
+        {
+          "kind": "community",
+          "title": "Fextralife, vaultalts.com and ggseason.com season lists agree on the date; the hour is from vaultalts.com, which cites Blizzard's announcements (research 2026-10-23)"
+        }
+      ]
+    },
+    {
+      "number": 13,
+      "name": "Season of Reckoning",
+      "startDate": "2026-04-27",
+      "startUtc": "2026-04-27T23:30:00Z",
+      "note": "With Lord of Hatred",
+      "confidence": "inferred",
+      "sources": [
+        {
+          "kind": "community",
+          "title": "Fextralife, vaultalts.com and ggseason.com season lists agree on the date; the hour is from vaultalts.com, which cites Blizzard's announcements (research 2026-10-23)"
+        }
+      ]
+    },
+    {
+      "number": 14,
+      "name": "Season of Death Awakening",
+      "startDate": "2026-06-30",
+      "startUtc": "2026-06-30T17:00:00Z",
+      "confidence": "inferred",
+      "sources": [
+        {
+          "kind": "community",
+          "title": "Fextralife, vaultalts.com and ggseason.com season lists agree on the date; the hour is from vaultalts.com, which cites Blizzard's announcements (research 2026-10-23)"
+        }
+      ]
+    },
+    {
+      "number": 15,
+      "name": "Season of Hell's Legacy",
+      "startDate": "2026-09-15",
+      "startUtc": "2026-09-15T16:30:00Z",
+      "confidence": "confirmed",
+      "sources": [
+        {
+          "kind": "blizzard",
+          "title": "Celebrate 30 Years of Diablo in Season of Hell's Legacy",
+          "url": "https://news.blizzard.com/en-us/article/24295394/celebrate-30-years-of-diablo-in-season-of-hell-s-legacy",
+          "quote": "Your War Plans progress from Season 14 characters will carry over to Eternal when the season changes on September 15."
+        }
+      ],
+      "hourNote": "9:30 a.m. PDT, from press coverage of the announcement (the same instant in PT, UK and KST)."
+    }
+  ],
+  "currentEndUtc": null,
+  "nextStartUtc": null,
+  "nextName": "Season 16",
+  "windows": [
+    {
+      "label": "Season 16 PTR (3.3.0, PC only)",
+      "startUtc": "2026-10-27T17:00:00Z",
+      "endUtc": "2026-11-03T18:00:00Z",
+      "detail": "Public Test Realm for the next season. Previews War Plans changes and a Helltide schedule change.",
+      "confidence": "confirmed",
+      "sources": [
+        {
+          "kind": "blizzard",
+          "title": "The 3.3.0 PTR: What You Need to Know (2026-10-22)",
+          "url": "https://news.blizzard.com/en-us/article/24302578/the-3-3-0-ptr-what-you-need-to-know",
+          "quote": "available from October 27, 10:00 a.m. PDT to November 3, 10 a.m. PST"
+        }
+      ]
+    }
+  ]
+}

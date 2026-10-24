@@ -1,0 +1,131 @@
+{
+  "checkedOn": "2026-10-23",
+  "regions": [
+    {
+      "id": "fractured_peaks",
+      "name": "Fractured Peaks",
+      "release": "base",
+      "confidence": "confirmed",
+      "waypoints": ["Bear Tribe Refuge", "Yelesna"],
+      "sources": ["blizzard-1.2.0-waypoints"]
+    },
+    {
+      "id": "scosglen",
+      "name": "Scosglen",
+      "release": "base",
+      "confidence": "confirmed",
+      "waypoints": ["Marrowen", "Tirmair"],
+      "sources": ["blizzard-1.2.0-waypoints"]
+    },
+    {
+      "id": "dry_steppes",
+      "name": "Dry Steppes",
+      "release": "base",
+      "confidence": "confirmed",
+      "waypoints": ["Chambatar Ridge", "Untamed Scraps"],
+      "sources": ["blizzard-1.2.0-waypoints"]
+    },
+    {
+      "id": "hawezar",
+      "name": "Hawezar",
+      "release": "base",
+      "confidence": "confirmed",
+      "waypoints": ["Backwater", "Ruins of Rakhat Keep: Inner Court", "Zarbinzet"],
+      "sources": ["blizzard-1.2.0-waypoints", "blizzard-s11-azmodan"]
+    },
+    {
+      "id": "kehjistan",
+      "name": "Kehjistan",
+      "release": "base",
+      "confidence": "confirmed",
+      "waypoints": ["Caldeum", "Tarsarak"],
+      "sources": ["blizzard-1.2.0-waypoints"]
+    },
+    {
+      "id": "nahantu",
+      "name": "Nahantu",
+      "release": "Vessel of Hatred",
+      "confidence": "confirmed",
+      "waypoints": [],
+      "sources": ["blizzard-voh"]
+    },
+    {
+      "id": "skovos",
+      "name": "Skovos",
+      "release": "Lord of Hatred",
+      "confidence": "confirmed",
+      "waypoints": ["Temis"],
+      "sources": ["blizzard-loh", "blizzard-loh-temis"]
+    }
+  ],
+  "helltideRegions": {
+    "regions": ["fractured_peaks", "scosglen", "dry_steppes", "hawezar", "kehjistan", "nahantu", "skovos"],
+    "confidence": "inferred",
+    "note": "Community guides (2026) list Helltide zones in all seven regions, and Blizzard's 3.3.0 PTR notes speak of Helltides in expansion zones. Blizzard has not published a per-region list.",
+    "sources": ["blizzard-3.3.0-ptr", "community-research"]
+  },
+  "worldBossArenas": [
+    { "region": "fractured_peaks", "name": "The Crucible", "confidence": "inferred", "sources": ["community-arenas"] },
+    { "region": "scosglen", "name": "Caen Adar", "confidence": "inferred", "sources": ["community-arenas"] },
+    { "region": "dry_steppes", "name": "Saraan Caldera", "confidence": "inferred", "sources": ["community-arenas"] },
+    { "region": "hawezar", "name": "Fields of Desecration", "confidence": "inferred", "sources": ["community-arenas"] },
+    { "region": "kehjistan", "name": "Seared Basin", "confidence": "inferred", "sources": ["community-arenas"] },
+    { "region": "nahantu", "name": "The Cauldron", "confidence": "inferred", "sources": ["community-arenas"] },
+    { "region": "skovos", "name": "Hatred's Mortar", "confidence": "inferred", "sources": ["community-arenas"] }
+  ],
+  "legionSites": [
+    { "region": "fractured_peaks", "name": "Kor Dragan", "confidence": "inferred", "note": "In the northwest of the region.", "sources": ["community-legion"] },
+    { "region": "nahantu", "name": "Basin of Souls", "confidence": "inferred", "note": "Nahantu's Legion is an escort: an orb is guarded on its way to the Basin of Souls and back.", "sources": ["community-legion"] }
+  ],
+  "helltideChests": [],
+  "sources": {
+    "blizzard-1.2.0-waypoints": {
+      "kind": "blizzard",
+      "title": "Diablo IV patch 1.2.0 notes (2023-10-17), waypoints unlocked for characters that skip the campaign",
+      "url": "https://news.blizzard.com/en-us/article/24092662/diablo-iv-patch-notes-1-0-1-2",
+      "quote": "Dry Steppes: Chambatar Ridge and Untamed Scraps. Fractured Peaks: Bear Tribe Refuge and Yelesna. Hawezar: Backwater and Ruins of Rakhat Keep: Inner Court. Kehjistan: Caldeum and Tarsarak. Scosglen: Marrowen and Tirmair."
+    },
+    "blizzard-s11-azmodan": {
+      "kind": "blizzard",
+      "title": "Vanquish the Lesser Evils in Season of Divine Intervention",
+      "url": "https://news.blizzard.com/en-us/article/24244465/vanquish-the-lesser-evils-in-season-of-divine-intervention",
+      "quote": "in Hawezar, near Zarbinzet"
+    },
+    "blizzard-voh": {
+      "kind": "blizzard",
+      "title": "Diablo IV: Vessel of Hatred",
+      "url": "https://diablo4.blizzard.com/en-us/vessel-of-hatred",
+      "quote": "journey into the new region of Nahantu"
+    },
+    "blizzard-loh": {
+      "kind": "blizzard",
+      "title": "Diablo IV: Lord of Hatred",
+      "url": "https://diablo4.blizzard.com/en-us/lord-of-hatred",
+      "quote": "region of Skovos, the ancient birthplace of the firstborn civilization"
+    },
+    "blizzard-loh-temis": {
+      "kind": "blizzard",
+      "title": "Prepare for the Reckoning: Lord of Hatred Draws Near (2026-04-23)",
+      "url": "https://news.blizzard.com/en-us/article/24267729/prepare-for-the-reckoning-lord-of-hatred-draws-near",
+      "quote": "The capital city of Temis is designed as the ideal Endgame hub"
+    },
+    "blizzard-3.3.0-ptr": {
+      "kind": "blizzard",
+      "title": "The 3.3.0 PTR: What You Need to Know (2026-10-22)",
+      "url": "https://news.blizzard.com/en-us/article/24302578/the-3-3-0-ptr-what-you-need-to-know",
+      "quote": "Helltides now start on the hour for base game zones and on the 30 minute mark in expansion zones"
+    },
+    "community-arenas": {
+      "kind": "community",
+      "title": "A community World Boss guide's arena list (research 2026-10-23); not confirmed by Blizzard or in game"
+    },
+    "community-legion": {
+      "kind": "community",
+      "title": "A community Gathering Legions guide, updated 2026-06-27 (research 2026-10-23); not confirmed by Blizzard or in game"
+    },
+    "community-research": {
+      "kind": "community",
+      "title": "Community guides read for research on 2026-10-23 (see docs/RESEARCH.md)"
+    }
+  }
+}

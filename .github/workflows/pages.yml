@@ -1,0 +1,50 @@
+# Builds the site and deploys it to GitHub Pages. For now it runs only by hand (Actions tab, "Run
+# workflow"), so a push never publishes by accident. To deploy on every push to main later, add
+# "push: branches: [main]" under "on". Needs the repo's Pages source set to "GitHub Actions".
+# The unit tests, the data checks and the browser tests run first; a failing build is not deployed.
+name: Deploy to GitHub Pages
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Unit tests and data checks
+        run: npm test
+      - name: Build (type check, then one self-contained index.html)
+        run: npm run build
+      - name: Browser tests in Chrome
+        run: npm run smoke
+        env:
+          CI: true
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

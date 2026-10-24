@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Diablo IV Tracker - Helltide, World Boss and Legion Timers | RadMage Labs</title>
+  <meta name="description" content="A free, ad-free Diablo IV event tracker: Helltide, World Boss and Legion countdowns in your own time zone, with optional reminders. Built for a second monitor.">
+  <meta name="color-scheme" content="dark light">
+  <link rel="canonical" href="https://radmagelabs.com/d4/">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23151417'/%3E%3Ccircle cx='16' cy='17' r='10' fill='none' stroke='%23e0523a' stroke-width='3'/%3E%3Cpath d='M16 11v6l4 3' fill='none' stroke='%23ece7df' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Crect x='13' y='3' width='6' height='3' rx='1' fill='%23d6a64f'/%3E%3C/svg%3E">
+  <script>
+    // Apply the saved theme before the first paint, so a light-theme user never sees a dark flash.
+    try {
+      var p = JSON.parse(localStorage.getItem('d4-tracker:v1:prefs') || 'null');
+      if (p && p.theme === 'light') document.documentElement.setAttribute('data-theme', 'light');
+      if (p && p.compact === true) document.documentElement.classList.add('compact');
+    } catch (e) { /* storage blocked: defaults */ }
+  </script>
+  <script type="module" src="./src/main.ts"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <h1>Diablo IV Tracker</h1>
+      <span class="tag">v0.2 · <a href="https://radmagelabs.com/">RadMage Labs</a></span>
+    </div>
+    <div class="clock" id="clock" aria-label="Current time">
+      <div class="now" id="clock-now">--:--</div>
+      <div class="sub" id="clock-sub">&nbsp;</div>
+    </div>
+    <div class="tools">
+      <button class="btn" id="log-open" type="button" title="Record what you saw in game">Log sighting</button>
+      <button class="btn" id="popout-open" type="button" title="Open a small compact window for a second monitor">Pop out</button>
+      <button class="btn" id="compact-toggle" type="button" aria-pressed="false" title="Compact view for a second monitor">Compact</button>
+      <button class="btn icon" id="settings-open" type="button" title="Settings" aria-label="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main id="app">
+    <section class="cards" id="cards" aria-label="Events"></section>
+    <div class="lower" id="lower">
+      <div class="main-col">
+        <section class="panel section" id="map-panel" aria-labelledby="map-title"></section>
+        <section class="panel section sightings" id="sightings-panel" aria-labelledby="sightings-title"></section>
+      </div>
+      <div class="side">
+        <section class="panel section" id="timeline-panel" aria-labelledby="timeline-title"></section>
+        <section class="panel section season" id="season-panel" aria-labelledby="season-title"></section>
+      </div>
+    </div>
+    <noscript><p class="panel section">This tracker calculates every countdown in your browser, so it needs JavaScript.</p></noscript>
+  </main>
+
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+
+  <dialog id="settings" aria-labelledby="settings-title"></dialog>
+  <dialog id="sighting-dialog" aria-labelledby="sighting-title"></dialog>
+
+  <footer>
+    <p><a href="https://radmagelabs.com/">RadMage Labs</a> · free, no ads, no tracking</p>
+    <p class="long">Unofficial fan tool, not affiliated with or endorsed by Blizzard Entertainment. Diablo and Blizzard Entertainment are trademarks or registered trademarks of Blizzard Entertainment, Inc. in the U.S. and/or other countries.</p>
+  </footer>
+</body>
+</html>
