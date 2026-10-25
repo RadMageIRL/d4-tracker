@@ -82,9 +82,10 @@
     { "region": "hawezar", "name": "Crusader's Monument", "confidence": "inferred", "note": "Spelled Crusader's Monument in the guides; one tracker writes Crusaders Monument.", "sources": ["community-legion-sites"] },
     { "region": "dry_steppes", "name": "Norgoi Vigil", "confidence": "inferred", "sources": ["community-legion-sites"] },
     { "region": "dry_steppes", "name": "Temple of Rot", "confidence": "inferred", "sources": ["community-legion-sites"] },
-    { "region": "nahantu", "name": "Chakhir", "confidence": "inferred", "note": "An expansion Legion inside the Chakhir Stronghold, which a party must have conquered. Runs alongside the base-game Legion.", "sources": ["community-legion-expansion"] },
-    { "region": "nahantu", "name": "Viz-jun", "confidence": "inferred", "note": "An expansion Legion site.", "sources": ["community-legion-expansion"] },
-    { "region": "nahantu", "name": "Basin of Souls", "confidence": "inferred", "note": "Nahantu's Legion is an escort: an orb is guarded on its way to the Basin of Souls and back.", "sources": ["community-legion"] }
+    { "region": "nahantu", "name": "Siege of Chakhir Ruins", "confidence": "inferred", "note": "An expansion Legion inside the Chakhir Stronghold, which a party must have conquered. Runs alongside the base-game Legion.", "sources": ["community-legion-expansion", "game-files-legion"] },
+    { "region": "nahantu", "name": "Of Souls and Spirits", "confidence": "inferred", "note": "An expansion Legion: an escort, guarding basins while they gather souls. Guides call it the Viz-jun Legion or the Basin of Souls. Runs alongside the base-game Legion.", "sources": ["community-legion-expansion", "community-legion", "game-files-legion"] },
+    { "region": "skovos", "name": "Pirate Invasion", "confidence": "inferred", "note": "An expansion Legion: defend a village against waves of pirates. Reached from Lycander or Philios. Runs alongside the base-game Legion.", "sources": ["game-files-legion", "community-legion-skovos"] },
+    { "region": "skovos", "name": "Cosmic Archives", "confidence": "inferred", "note": "An expansion Legion inside the Cosmic Archives Stronghold, between Celestia and Skartara, which a party must have conquered. Runs alongside the base-game Legion.", "sources": ["game-files-legion", "community-legion-skovos"] }
   ],
   "chestTypes": [
     {"id": "mystery", "name": "Tortured Gift of Mysteries", "confidence": "confirmed", "relocatesAtMinutes": [30], "note": "The orange \"?\" chest: 250 Aberrant Cinders in Torment, 75 below it. Players in 2026 report two per Helltide, one in each part of it, moving to another spot about half an hour in (community reports, not documented by Blizzard), so a mark lasts until then.", "sources": ["blizzard-1.1.0a-mysteries", "community-chests"]},
@@ -162,6 +163,14 @@
     "community-legion-expansion": {
       "kind": "community",
       "title": "Community Legion guides naming Chakhir and Viz-jun in Nahantu as Legion sites (Game Rant, research 2026-10-23; Wowhead, read 2026-10-24); not all checked in game"
+    },
+    "game-files-legion": {
+      "kind": "community",
+      "title": "The game's own Legion list in a community extraction of the patch 3.2.3 client files: one Legion bounty per site, twelve in all, two in Nahantu (Siege of Chakhir Ruins, Of Souls and Spirits) and two in Skovos (Pirate Invasion, Cosmic Archives) (research 2026-10-24); not documented by Blizzard"
+    },
+    "community-legion-skovos": {
+      "kind": "community",
+      "title": "First-hand Blizzard forum reports of the Skovos Legions, the pirate battle and the Cosmic Archives Legion (2026-04 to 2026-06, research 2026-10-24); not all checked in game"
     },
     "community-legion-sites": {
       "kind": "community",

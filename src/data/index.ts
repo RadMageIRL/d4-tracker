@@ -15,7 +15,7 @@ import { anchorEvidence, MIN_DAYS, MIN_MATCHING } from '../engine/verification';
 import type { MapData, MapMarker, MapRegion } from './map';
 import {
   checkEvents, checkLocations, checkRotations, checkSeasons,
-  type EventsFile, type LocationsFile, type RotationsFile, type SeasonsFile, type Source,
+  type EventsFile, type LegionExpansionRecord, type LocationsFile, type RotationsFile, type SeasonsFile, type Source,
 } from './schema';
 
 export const EVENTS = eventsJson as EventsFile;
@@ -49,6 +49,16 @@ const lg = ROTATIONS.legion;
 export const LEGION_GROUPS: { groups: Record<string, string[]>; cycle: Cycle } | undefined = lg
   ? { groups: lg.groups, cycle: cycleOf({ cycle: lg.cycle, pin: lg.pin }) }
   : undefined;
+
+/**
+ * The expansion-region Legion's site order and its caveats (data/rotations.json legion.expansion),
+ * or nothing when it is absent or switched off ("enabled": false).
+ */
+export function legionExpansionOf(x: LegionExpansionRecord | undefined): { cycle: Cycle; caveats: Record<string, string> } | undefined {
+  return x?.enabled ? { cycle: cycleOf(x), caveats: x.caveats ?? {} } : undefined;
+}
+
+export const LEGION_EXPANSION = legionExpansionOf(lg?.expansion);
 
 /** Orders registered for our sightings to test; none is shown until sightings bear it out. */
 export const REGISTERED_RULES: RegisteredRule[] = ROTATIONS.rules.map((r) => ({

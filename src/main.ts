@@ -6,7 +6,7 @@ import { LocalScheduleSource } from './adapters/local-schedule';
 import type { ScheduleSource } from './adapters/types';
 import {
   bossNames, DETAIL_REASONS, eventDefinitions, EVENTS, knownPlaces, LOCATIONS, MAP_DATA, REGISTERED_RULES, resetBoundaries,
-  HELLTIDE_CYCLES, LEGION_GROUPS, ROTATIONS, SEASONS, SHARED_SIGHTINGS, WORLD_BOSS_ROTATION,
+  HELLTIDE_CYCLES, LEGION_EXPANSION, LEGION_GROUPS, ROTATIONS, SEASONS, SHARED_SIGHTINGS, WORLD_BOSS_ROTATION,
 } from './data';
 import { chestSpots, chestState, type SharedSpot } from './engine/chests';
 import { detectResume, estimateClock, SAMPLE_GAP_MS, type ClockEstimate, type ClockSample } from './engine/clock';
@@ -47,6 +47,7 @@ const detailsSource = new IntelligenceDetailsSource({
   ...(WORLD_BOSS_ROTATION ? { rotation: WORLD_BOSS_ROTATION } : {}),
   helltideCycles: HELLTIDE_CYCLES,
   ...(LEGION_GROUPS ? { legionGroups: LEGION_GROUPS } : {}),
+  ...(LEGION_EXPANSION ? { legionExpansion: LEGION_EXPANSION } : {}),
   ...(WORLD_BOSS?.extra ? { extra: { every: WORLD_BOSS.extra.every, has: (startMs: number) => hasExtraSpawn(WORLD_BOSS, startMs) } } : {}),
 });
 
@@ -215,7 +216,23 @@ function orderNotes(kind: EventKind, now: number, timeZone: string): OrderNote[]
     if (m.reported) parts.push(`${m.reported} secondhand report${m.reported === 1 ? '' : 's'} shown but not used.`);
     if (m.older) parts.push(`${m.older} sighting${m.older === 1 ? '' : 's'} from before the current season or schedule not used.`);
     return { label: spec.label, confidence: m.confidence, text: parts.join(' ') };
-  }).concat(kind === 'worldBoss' ? rotationNotes(now, timeZone) : []);
+  }).concat(kind === 'worldBoss' ? rotationNotes(now, timeZone) : kind === 'legion' ? expansionNotes(timeZone) : []);
+}
+
+/** Coming up: a Legion start's predicted expansion region, compact ("also Skovos"); the card labels it Predicted. */
+function expansionTimelineNote(kind: EventKind, startMs: number): string | null {
+  const x = kind === 'legion' ? detailsSource.legionExpansionAt(startMs) : null;
+  return x ? `also ${x.region}` : null;
+}
+
+/** Where the expansion Legion's predicted site comes from, for the Legion card's About section only. */
+function expansionNotes(timeZone: string): OrderNote[] {
+  const x = ROTATIONS.legion?.expansion;
+  if (!x || !LEGION_EXPANSION) return [];
+  return [{
+    label: 'Expansion Legion', confidence: 'inferred', status: 'Predicted', aboutOnly: true,
+    text: `${x.basis} Pinned to a Legion on ${calendarDate(LEGION_EXPANSION.cycle.pin.startMs, timeZone)}.`,
+  }];
 }
 
 /** Where World Boss predictions come from, for the card's About section. */
@@ -417,7 +434,7 @@ function render(): void {
       extra: extraNote(st),
     });
   }
-  timeline.update(shown, c);
+  timeline.update(shown, c, expansionTimelineNote);
   season.update(c);
   sightingsPanel.update();
   map.update();

@@ -56,6 +56,8 @@ export interface EventDetails {
   candidates?: { place: string; region: string }[];
   /** Legion: an expansion-region Legion seen at the same time, shown beside the candidates. */
   also?: string;
+  /** Legion: the expansion-region site predicted for the same start, folded with the candidates. */
+  alsoPredicted?: { place: string; region: string; caveat?: string };
 }
 
 export type Phase = 'active' | 'waiting' | 'unknown';

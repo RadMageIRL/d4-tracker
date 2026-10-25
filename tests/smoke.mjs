@@ -740,7 +740,54 @@ try {
     const bothSummary = await lgBoth.eval(text('.event[data-kind="legion"] details.candidates summary'));
     check('an expansion Legion seen at the same time keeps the base-game candidates and shows beside them', bothSummary === '4 candidates · predicted · also Chakhir, Nahantu (seen)', bothSummary);
     check('and lights its own Legion dot, in Nahantu', (await dots(lgBoth)).includes('legion:nahantu'), await dots(lgBoth));
+    check('before the expansion order\'s pin, no expansion site is predicted', (await lgBoth.eval("document.querySelector('.event[data-kind=\"legion\"] .candidates-expansion').hidden")) === true);
     await lgBoth.close();
+
+    // The expansion Legion's predicted site: inside the folded candidates, apart from them, labeled Predicted.
+    const xLine = '.event[data-kind="legion"] details.candidates .candidates-expansion';
+    const lgX = await open('2026-10-25T00:25:00Z', { timezone: 'UTC', prefs: {}, before: "localStorage.removeItem('d4-tracker:v1:observations')" });
+    const xBox = await lgX.eval(`(() => { const d = document.querySelector('.event[data-kind="legion"] details.candidates'); const x = d.querySelector('.candidates-expansion');
+      const folded = x.checkVisibility(); d.open = true; const r = { summary: d.querySelector('summary').textContent, folded, opened: x.checkVisibility(), text: x.textContent,
+        inList: !!x.closest('ul'), items: d.querySelectorAll('li').length }; d.open = false; return r; })()`);
+    check('the summary stays "4 candidates · predicted" with an expansion site predicted', xBox.summary === '4 candidates · predicted', JSON.stringify(xBox));
+    check('the predicted expansion site is folded away with the candidates', xBox.folded === false && xBox.opened === true, JSON.stringify(xBox));
+    check('it is its own line after the four candidates, not one of them', !xBox.inList && xBox.items === 4, JSON.stringify(xBox));
+    check('Cosmic Archives (00:30 UTC) shows as Predicted with its visibility caveat',
+      xBox.text === 'Expansion: Cosmic Archives, Skovos · Predicted · visibility may depend on campaign/stronghold progression', xBox.text);
+    check('a predicted expansion site puts no Legion dot on the radar', !(await dots(lgX)).includes('legion'), await dots(lgX));
+    const xTrust = await lgX.eval(text('.event[data-kind="legion"] .trust'));
+    check('and adds no badge to the Legion card\'s trust row', !xTrust.includes('Expansion'), xTrust);
+    const xAbout = await lgX.eval(text('.event[data-kind="legion"] details.about'));
+    check('About this card explains the expansion order, labeled Predicted', /Expansion Legion: Predicted/.test(xAbout) && xAbout.includes('repeating every 100 minutes'), xAbout.slice(0, 400));
+    const xLater = await lgX.eval(`[...document.querySelectorAll('.event[data-kind="legion"] details.later-predictions li')].map(li => li.textContent).join(' | ')`);
+    check('later Legions list their expansion site after the group\'s regions', xLater.includes('4 candidates: Hawezar, Dry Steppes; also Pirate Invasion, Skovos')
+      && xLater.includes('4 candidates: Fractured Peaks, Scosglen, Kehjistan; also Siege of Chakhir Ruins, Nahantu'), xLater);
+    const xRows = await lgX.eval(`[...document.querySelectorAll('#timeline-panel li')].map(li => li.dataset.kind + ':' + li.children[1].textContent)`);
+    const xLegionRows = xRows.filter((r) => r.startsWith('legion:')).slice(0, 3).join(' | ');
+    check('Coming up notes each Legion start\'s predicted expansion region, compactly, without "predicted"', xLegionRows
+      === 'legion:Legion starts (also Skovos) | legion:Legion starts (also Skovos) | legion:Legion starts (also Nahantu)', xLegionRows);
+    check('and adds nothing to the other events\' rows', xRows.filter((r) => !r.startsWith('legion:')).every((r) => !r.includes('(also ')), JSON.stringify(xRows));
+    // Each Coming up label stays on one line on a desktop; on a phone a note may move down, but whole.
+    const oneLine = `[...document.querySelectorAll('#timeline-panel li')].filter(li => { const s = li.children[1]; return s.getBoundingClientRect().height > 1.5 * parseFloat(getComputedStyle(s).lineHeight); }).map(li => li.children[1].textContent)`;
+    check('Coming up labels do not wrap on a desktop', (await lgX.eval(oneLine)).length === 0, JSON.stringify(await lgX.eval(oneLine)));
+    const split = `[...document.querySelectorAll('#timeline-panel .tl-note')].filter(n => n.getClientRects().length !== 1).map(n => n.textContent)`;
+    const xPhone = await open('2026-10-25T00:25:00Z', { timezone: 'UTC', width: 390, height: 844, mobile: true, prefs: {}, before: "localStorage.removeItem('d4-tracker:v1:observations')" });
+    const phoneNotes = await xPhone.eval("document.querySelectorAll('#timeline-panel .tl-note').length");
+    check('on a 390 px phone no expansion note is split across lines', phoneNotes > 0 && (await xPhone.eval(split)).length === 0, `${phoneNotes} notes; split ${JSON.stringify(await xPhone.eval(split))}`);
+    await xPhone.close();
+    const span = await lgX.eval(`(() => { const li = [...document.querySelectorAll('#timeline-panel li')]; return { title: document.querySelector('#timeline-title .note').textContent,
+      rows: li.length, lastIn: Number(li.at(-1).dataset.start) - Date.now() }; })()`);
+    check('Coming up covers the next 6 hours', span.title === 'next 6 hours' && span.rows > 10 && span.lastIn > 5 * 3600000 && span.lastIn <= 6 * 3600000 + 1000, JSON.stringify(span));
+    await advance(lgX, 5 * 60000 + 1000);
+    await lgX.waitFor(`document.querySelector('${xLine}')?.textContent.startsWith('Expansion: Pirate Invasion')`, 6000).catch(() => {});
+    check('at its start the card moves on to the next expansion site (Pirate Invasion, 00:55), without a caveat',
+      (await lgX.eval(`document.querySelector('${xLine}').textContent`)) === 'Expansion: Pirate Invasion, Skovos · Predicted', await lgX.eval(`document.querySelector('${xLine}').textContent`));
+    await lgX.close();
+    const lgXSeen = await open('2026-10-24T23:35:00Z', { timezone: 'UTC', prefs: {}, before: seed([S('lg3', { event: 'legion', at: '2026-10-24T23:40:00Z', timing: 'start', place: 'Siege of Chakhir Ruins', region: 'nahantu' })]) });
+    const xSeenSummary = await lgXSeen.eval(text('.event[data-kind="legion"] details.candidates summary'));
+    check('an expansion Legion seen in game replaces the predicted one', xSeenSummary === '4 candidates · predicted · also Siege of Chakhir Ruins, Nahantu (seen)'
+      && (await lgXSeen.eval(`document.querySelector('${xLine}').hidden`)) === true, xSeenSummary);
+    await lgXSeen.close();
 
     // Lead-up windows and expiry: 40 minutes before the World Boss nothing shows; the Legion 25 minutes out does not either.
     const early = await open('2026-10-24T10:20:00Z', { timezone: 'UTC', before: seed(scene) });

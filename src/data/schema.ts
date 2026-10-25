@@ -263,6 +263,25 @@ export interface LegionRotationRecord {
   pin: RotationPinRecord;
   basis: string;
   sources: Source[];
+  /** The expansion-region Legion that runs beside the base-game one, predicted on its own. */
+  expansion?: LegionExpansionRecord;
+}
+
+/**
+ * The expansion-region Legion's site, one per Legion, taken in turn. Kept apart from the base-game
+ * groups so it can be revised or dropped alone; a null step predicts no site for that turn.
+ */
+export interface LegionExpansionRecord {
+  /** false turns the expansion prediction off everywhere; the base-game groups are not affected. */
+  enabled: boolean;
+  /** Sites by name as in locations.json legionSites, all in expansion regions, or null. */
+  cycle: (string | null)[];
+  /** ISO UTC start of a Legion, and its site's place in the cycle. */
+  pin: RotationPinRecord;
+  /** Site -> a short caveat shown with its prediction. */
+  caveats?: Record<string, string>;
+  basis: string;
+  sources: Source[];
 }
 
 export interface RotationsFile {
@@ -523,6 +542,25 @@ export function checkRotations(f: RotationsFile, events: EventsFile, locations: 
     if (!lg.basis) p.add(w, 'needs a basis');
     if (!lg.sources.length) p.add(w, 'needs a source');
     lg.sources.forEach((s, i) => checkSource(p, `${w} source ${i}`, s));
+    const x = lg.expansion;
+    if (x) {
+      const xw = 'legion expansion rotation';
+      if (typeof x.enabled !== 'boolean') p.add(xw, 'enabled must be true or false');
+      const inExpansion = new Set(locations.legionSites.filter((s) => expansion.has(s.region)).map((s) => s.name));
+      if (!x.cycle.length || x.cycle.length > 64) p.add(xw, 'cycle must have 1 to 64 steps');
+      if (!x.cycle.some((s) => s !== null)) p.add(xw, 'needs at least one site');
+      x.cycle.forEach((s, i) => {
+        if (s !== null && !inExpansion.has(s)) p.add(`${xw} step ${i}`, `${s} is not an expansion-region site in locations.json legionSites`);
+      });
+      for (const [site, text] of Object.entries(x.caveats ?? {})) {
+        if (!x.cycle.includes(site)) p.add(`${xw} caveat`, `${site} is not in the cycle`);
+        if (!text.trim()) p.add(`${xw} caveat`, `${site} needs its text`);
+      }
+      position(x.pin, x.cycle.length, `${xw} pin`);
+      if (!x.basis) p.add(xw, 'needs a basis');
+      if (!x.sources.length) p.add(xw, 'needs a source');
+      x.sources.forEach((s, i) => checkSource(p, `${xw} source ${i}`, s));
+    }
   }
   for (const x of f.resets) {
     if (!isInstant(x.at)) p.add(`reset ${x.label}`, 'at must be an ISO UTC instant');

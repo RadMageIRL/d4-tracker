@@ -2,7 +2,7 @@
 
 import type { Claim, Confidence } from '../data/schema';
 import { agoWords, clockTime, countdown, dayLabel, spanWords, type ClockStyle } from '../engine/format';
-import type { EventKind, EventStatus, TimedSegment } from '../engine/events';
+import type { EventDetails, EventKind, EventStatus, TimedSegment } from '../engine/events';
 import type { Fact } from '../engine/facts';
 import { h, nodes, s, setText } from './dom';
 
@@ -39,6 +39,8 @@ export interface OrderNote {
   text: string;
   /** Shown instead of the confidence's name, e.g. "Predicted". */
   status?: string;
+  /** Explained under About this card only, with no badge in the card's trust row. */
+  aboutOnly?: boolean;
 }
 
 /**
@@ -155,8 +157,11 @@ export class EventCard {
   private candidatesLabel = h('span', {});
   private candidatesAlso = h('span', { class: 'hint' });
   private candidatesList = h('ul', {});
+  /** The expansion-region Legion predicted for the same start, apart from the base-game candidates. */
+  private candidatesExpansion = h('p', { class: 'candidates-expansion', hidden: true });
   private candidates = h('details', { class: 'candidates' },
-    h('summary', {}, this.candidatesLabel, h('span', { class: 'hint' }, ' · predicted'), this.candidatesAlso), this.candidatesList);
+    h('summary', {}, this.candidatesLabel, h('span', { class: 'hint' }, ' · predicted'), this.candidatesAlso), this.candidatesList,
+    this.candidatesExpansion);
   private extraRow: FactRow | null;
   private list = h('ul', { class: 'next-list', 'aria-label': 'Later' });
   private predictions = h('ul', {});
@@ -237,7 +242,7 @@ export class EventCard {
 
     if (this.identityRow) showFact(this.identityRow, st.details.identity);
     showFact(this.locationRow, st.details.location);
-    this.showCandidates(st.details.candidates, st.details.also);
+    this.showCandidates(st.details.candidates, st.details.also, st.details.alsoPredicted);
     // Nothing known yet: the row waits until there is (the reason is under About this card).
     if (this.identityRow) showRow(this.identityRow, !!st.details.identity?.known);
     showRow(this.locationRow, st.details.location.known || !!st.details.candidates?.length);
@@ -266,7 +271,8 @@ export class EventCard {
   }
 
   /** The candidate sites in place of a one-line location: "4 candidates · predicted", opened for the list. */
-  private showCandidates(list: { place: string; region: string }[] | undefined, also: string | undefined): void {
+  private showCandidates(list: { place: string; region: string }[] | undefined, also: string | undefined,
+    alsoPredicted: EventDetails['alsoPredicted']): void {
     const on = !!list?.length;
     // In the row only while it has something to show, so the row's text is just what is shown.
     if (on && !this.candidates.isConnected) this.locationRow.dd.append(this.candidates);
@@ -282,6 +288,12 @@ export class EventCard {
     if ([...this.candidatesList.children].map((li) => li.textContent).join('|') !== items.join('|')) {
       this.candidatesList.replaceChildren(...items.map((t) => h('li', {}, t)));
     }
+    const x = alsoPredicted;
+    const xText = x ? `Expansion: ${x.place}, ${x.region} · Predicted${x.caveat ? ` · ${x.caveat}` : ''}` : '';
+    if (this.candidatesExpansion.textContent !== xText) {
+      this.candidatesExpansion.replaceChildren(...(x ? [`Expansion: ${x.place}, ${x.region}`, h('span', { class: 'hint' }, ` · Predicted${x.caveat ? ` · ${x.caveat}` : ''}`)] : []));
+    }
+    this.candidatesExpansion.hidden = !x;
   }
 
   private renderTrust(st: EventStatus, extras: CardExtras): void {
@@ -290,7 +302,7 @@ export class EventCard {
     const unknowns = [st.details.identity, st.details.location].filter((f): f is Fact<string> & { known: false } => !!f && !f.known);
     const key = [seg?.interval.confidence, seg?.phase.confidence, extras.checkedDaysAgo, extras.sightings, extras.anchorProgress,
       unknowns.map((u) => u.reason).join('|'), extras.orders.map((o) => `${o.confidence}${o.text}`).join('|')].join('#');
-    const trusted = extras.orders.filter((o) => o.confidence !== 'unknown');
+    const trusted = extras.orders.filter((o) => o.confidence !== 'unknown' && !o.aboutOnly);
     if (key === this.aboutKey) return;
     this.aboutKey = key;
     const ago = extras.checkedDaysAgo <= 0 ? 'today' : `${extras.checkedDaysAgo} ${extras.checkedDaysAgo === 1 ? 'day' : 'days'} ago`;

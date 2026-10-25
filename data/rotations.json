@@ -53,13 +53,30 @@
     },
     "cycle": ["a", "b"],
     "pin": { "start": "2026-03-18T05:20:00Z", "position": 0 },
-    "basis": "Predicted, not confirmed: Blizzard documents no order. The base-game Legion's site comes from one of two groups of four, and the group alternates every Legion: community tracker records of the group fit this for every recorded Legion since 2026-03-18 (4,578 of them). Which site of the group it is, is not predicted. Since the expansions an expansion-region Legion (Nahantu, Skovos) can run at the same time; it is not predicted.",
+    "basis": "Predicted, not confirmed: Blizzard documents no order. The base-game Legion's site comes from one of two groups of four, and the group alternates every Legion: community tracker records of the group fit this for every recorded Legion since 2026-03-18 (4,578 of them). Which site of the group it is, is not predicted. Since the expansions an expansion-region Legion (Nahantu, Skovos) can run at the same time; its site is predicted separately (expansion, below).",
     "sources": [
       {
         "kind": "community",
         "title": "Community tracker records of the Legion site group, every recorded Legion from 2026-03-18 to 2026-10-24 (read 2026-10-24); each one alternates"
       }
-    ]
+    ],
+    "expansion": {
+      "enabled": true,
+      "cycle": ["Siege of Chakhir Ruins", "Of Souls and Spirits", "Cosmic Archives", "Pirate Invasion"],
+      "pin": { "start": "2026-10-24T22:00:00Z", "position": 0 },
+      "caveats": { "Cosmic Archives": "visibility may depend on campaign/stronghold progression" },
+      "basis": "Predicted, provisional: Blizzard documents no order. An expansion-region Legion runs beside the base-game one, one site per Legion in a fixed order of four, repeating every 100 minutes: Siege of Chakhir Ruins, Of Souls and Spirits (Nahantu), Cosmic Archives, Pirate Invasion (Skovos). Fitted to in-game checks on 2026-10-24; later checks fit it by map position. No Cosmic Archives marker has been seen in game: its turns may show none without campaign or stronghold progress.",
+      "sources": [
+        {
+          "kind": "observation",
+          "title": "Expansion Legions checked in game, used for the order and the pin"
+        },
+        {
+          "kind": "community",
+          "title": "The game's own list of the four expansion Legion sites, in a community extraction of the patch 3.2.3 client files (research 2026-10-24)"
+        }
+      ]
+    }
   },
   "rules": [],
   "resets": []

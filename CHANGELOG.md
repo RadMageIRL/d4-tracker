@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.7.0 (unreleased)
+
+- Expansion Legion intelligence. An expansion-region Legion runs beside the base-game one, and the
+  Legion card now predicts its site, provisionally: one per Legion in a fixed order of four,
+  repeating every 100 minutes (Siege of Chakhir Ruins, Of Souls and Spirits in Nahantu; Cosmic
+  Archives, Pirate Invasion in Skovos), fitted to in-game checks. It sits inside the folded
+  "4 candidates", on its own line, labeled Predicted. Coming up notes each Legion start's
+  expansion region ("Legion starts (also Skovos)"), and Later predictions and About this card cover
+  it.
+  No Cosmic Archives marker has been seen in game, so its line says its visibility may depend on
+  campaign or stronghold progress. A Legion you log as seen replaces the prediction. The radar
+  lights nothing for it; the base-game countdown, groups and candidates are unchanged. The order
+  can be switched off in the data on its own.
+- Legion sites. Nahantu's Legions are Siege of Chakhir Ruins and Of Souls and Spirits (the earlier
+  Chakhir, Viz-jun and Basin of Souls entries were two events under three names); Skovos's Pirate
+  Invasion and Cosmic Archives are added. Twelve sites, matching the game's own list.
+- Coming up looks 6 hours ahead (it showed at most 10 starts, under 3 hours). On a narrow screen a
+  Legion row's "(also ...)" moves to the next line whole instead of splitting.
+
 ## v0.6.0 (2026-10-24)
 
 - Helltide region predictions. The Helltide card names the region of the Helltide in progress,

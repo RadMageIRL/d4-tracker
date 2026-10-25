@@ -96,8 +96,13 @@ sites (Kor Dragan, Carrowcrest Ruins, Dilapidated Aqueducts, Alcarnus; or Haunte
 Crusader's Monument, Norgoi Vigil, Temple of Rot), and the group alternates every Legion: community
 tracker records of the group fit this for every recorded Legion since 2026-03-18. The Legion card
 shows "4 possible sites", folded, labeled Predicted; which one it is, is not predicted, so the radar
-shows a Legion only once its site is seen. An expansion-region Legion (Nahantu: Chakhir or Viz-jun;
-Skovos) can run at the same time; it is not predicted, and one you log shows beside the candidates.
+shows a Legion only once its site is seen. An expansion-region Legion runs at the same time, and
+its site is predicted on its own, provisionally: one per Legion in a fixed order of four, repeating
+every 100 minutes (Siege of Chakhir Ruins, Of Souls and Spirits in Nahantu; Cosmic Archives, Pirate
+Invasion in Skovos), fitted to in-game checks. It is folded with the candidates, labeled Predicted,
+and lights nothing on the radar. No Cosmic Archives marker has been seen in game; its visibility
+may depend on campaign or stronghold progress. One you log as seen shows beside the candidates
+instead.
 
 Without these models in the data, the tracker looks for a repeating order in your own sightings
 instead. Such an order is never Confirmed, however many sightings fit: only Blizzard's own words

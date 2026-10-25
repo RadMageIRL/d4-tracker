@@ -272,6 +272,7 @@ details.about .muted { margin: 8px 0 0; font-size: 12px; color: var(--text-faint
 
 .facts details.candidates summary { cursor: pointer; }
 .facts details.candidates ul { margin: 4px 0 0; padding: 0; list-style: none; display: grid; gap: 2px; font-size: 13px; color: var(--text-dim); }
+.facts details.candidates .candidates-expansion { margin: 6px 0 0; font-size: 13px; color: var(--text-dim); }
 details.later-predictions { font-size: 13px; color: var(--text-dim); }
 details.later-predictions summary { cursor: pointer; color: var(--text-faint); font-size: 12px; }
 details.later-predictions ul { margin: 4px 0 0; padding: 0; list-style: none; display: grid; gap: 2px; font-variant-numeric: tabular-nums; }
@@ -334,6 +335,7 @@ details.later-predictions ul { margin: 4px 0 0; padding: 0; list-style: none; di
 .timeline li:last-child { border-bottom: 0; }
 .timeline .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
 .timeline .when { color: var(--text-dim); font-size: 13px; text-align: right; }
+.timeline .tl-note { white-space: nowrap; }
 .timeline li[data-kind="helltide"] { --accent: var(--helltide); }
 .timeline li[data-kind="worldBoss"] { --accent: var(--boss); }
 .timeline li[data-kind="legion"] { --accent: var(--legion); }
