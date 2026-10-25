@@ -69,6 +69,12 @@ describe('sanitize', () => {
     expect(sanitize({ radarLead: { worldBoss: 45, legion: 'x' } }).radarLead).toEqual({ worldBoss: 30, legion: 10 });
     expect(sanitize({ radar: { legion: false, helltide: 'no' } }).radar).toEqual({ helltide: true, worldBoss: true, legion: false });
   });
+
+  it('shows every event in Coming up by default, and keeps a saved pick only when it is offered', () => {
+    expect(defaultPrefs().comingUp).toBe('all');
+    expect(sanitize({ comingUp: 'worldBoss' }).comingUp).toBe('worldBoss');
+    expect(sanitize({ comingUp: 'season' }).comingUp).toBe('all');
+  });
 });
 
 describe('storage key', () => {

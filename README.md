@@ -7,7 +7,7 @@ your browser from rules kept in this repository; it does not depend on any other
 
 Live at https://radmagelabs.com/d4/
 
-![Diablo IV Tracker v0.7.1 at 12:47 AM UTC on a first visit: an active Helltide with 8:00 left, predicted in Fractured Peaks and Skovos, which the Sanctuary Event Radar outlines in red; the World Boss in 13:00 with its predicted boss, Wandering Death, a second World Boss in an expansion region, and a prompt to check the in-game map for boss and location; the next Legion in 8:00 with its six candidate sites folded, four base-game and two expansion, and a prompt to check the in-game map; six hours of coming-up starts, each Legion with its predicted expansion region; the empty sightings log and the Season 15 panel](screenshots/dashboard.png)
+![Diablo IV Tracker v0.7.2 at 12:47 AM UTC on a first visit: an active Helltide with 8:00 left, predicted in Fractured Peaks and Skovos, which the Sanctuary Event Radar outlines in red; the World Boss in 13:00 with its predicted boss, Wandering Death, a second World Boss in an expansion region, and a prompt to check the in-game map for boss and location; the next Legion in 8:00 with its six candidate sites folded, four base-game and two expansion, and a prompt to check the in-game map; six hours of coming-up starts with All, Helltide, World Boss and Legion picks, each Legion with its predicted expansion region; the empty sightings log and the Season 15 panel](screenshots/dashboard.png)
 
 ## What it shows
 
@@ -19,8 +19,11 @@ Live at https://radmagelabs.com/d4/
   card says so. From an hour before a spawn the card says to check the in-game map, which then shows
   the boss and its arena.
 - **Legion.** A countdown to the next Legion event, when the last one started, the next three, and
-  the four candidate sites. From ten minutes before, the card says to check the in-game map.
-- **Coming up.** Every start in the next four hours in one list.
+  its six candidate sites, four base-game and two expansion. From ten minutes before, the card says
+  to check the in-game map.
+- **Coming up.** Every start in the next six hours in one list. Pick Helltide, World Boss or Legion
+  to list only that event's starts, each with what is predicted for it: the Helltide's regions, the
+  World Boss's boss (a whole day of World Bosses), the Legion's candidates.
 - **Season.** The live season, when it started and how many days in it is, its end and the next
   season's start once Blizzard announces them, announced windows such as a PTR, and every past
   season with its dates and length.

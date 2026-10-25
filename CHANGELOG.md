@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.7.2 (2026-10-25)
+
+- Coming up by event. Pick All, Helltide, World Boss or Legion above the list. One event picked
+  lists only its starts, each with what is predicted for it on a line of its own: the Helltide's
+  regions, the World Boss's boss, the Legion's candidates. World Boss looks a whole day ahead (about
+  seven spawns); the others six hours. The pick is remembered.
+
 ## v0.7.1 (2026-10-25)
 
 - Six Legion candidates. The Legion card's Location reads "6 candidates · predicted": the group's

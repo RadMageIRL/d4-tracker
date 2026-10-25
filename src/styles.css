@@ -337,6 +337,13 @@ details.later-predictions ul { margin: 4px 0 0; padding: 0; list-style: none; di
 .timeline .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
 .timeline .when { color: var(--text-dim); font-size: 13px; text-align: right; }
 .timeline .tl-note { white-space: nowrap; }
+.timeline .tl-detail { display: block; font-size: 13px; color: var(--text-dim); }
+.tl-picks { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; }
+.tl-picks .chip { font: inherit; font-size: 13px; color: var(--text-dim); }
+.tl-picks .chip[aria-pressed="true"] { color: var(--text); border-color: var(--focus); background: color-mix(in srgb, var(--focus) 16%, var(--surface-2)); }
+.tl-picks .chip[data-pick="helltide"] .swatch { background: var(--helltide); }
+.tl-picks .chip[data-pick="worldBoss"] .swatch { background: var(--boss); }
+.tl-picks .chip[data-pick="legion"] .swatch { background: var(--legion); }
 .timeline li[data-kind="helltide"] { --accent: var(--helltide); }
 .timeline li[data-kind="worldBoss"] { --accent: var(--boss); }
 .timeline li[data-kind="legion"] { --accent: var(--legion); }

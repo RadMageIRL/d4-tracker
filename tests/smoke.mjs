@@ -779,6 +779,21 @@ try {
     const span = await lgX.eval(`(() => { const li = [...document.querySelectorAll('#timeline-panel li')]; return { title: document.querySelector('#timeline-title .note').textContent,
       rows: li.length, lastIn: Number(li.at(-1).dataset.start) - Date.now() }; })()`);
     check('Coming up covers the next 6 hours', span.title === 'next 6 hours' && span.rows > 10 && span.lastIn > 5 * 3600000 && span.lastIn <= 6 * 3600000 + 1000, JSON.stringify(span));
+    // One event picked: only its starts, each with its prediction on a line of its own; the World Boss looks a day ahead.
+    const picks = () => lgX.eval(`[...document.querySelectorAll('.tl-picks button')].map(b => b.textContent + (b.getAttribute('aria-pressed') === 'true' ? '*' : '')).join(',')`);
+    const pickRows = () => lgX.eval(`[...document.querySelectorAll('#timeline-panel li')].map(li => li.dataset.kind + ':' + (li.querySelector('.tl-detail')?.textContent ?? ''))`);
+    check('Coming up offers All, Helltide, World Boss and Legion, with All picked', (await picks()) === 'All*,Helltide,World Boss,Legion', await picks());
+    await lgX.eval(`document.querySelector('.tl-picks [data-pick="worldBoss"]').click()`);
+    const wbRows = await pickRows();
+    const wbSpan = await lgX.eval(text('#timeline-title .note'));
+    check('World Boss picked: its 7 spawns in the next 24 hours, each with its predicted boss', wbSpan === 'next 24 hours' && wbRows.length === 7
+      && wbRows.every((r) => /^worldBoss:\S/.test(r)), `${wbSpan} ${JSON.stringify(wbRows)}`);
+    await lgX.eval(`document.querySelector('.tl-picks [data-pick="helltide"]').click()`);
+    const htRows = await pickRows();
+    check('Helltide picked: each hour with its regions', htRows.length === 6 && htRows[0] === 'helltide:Scosglen' && htRows[1] === 'helltide:Dry Steppes and Nahantu', JSON.stringify(htRows));
+    check('the pick is kept in the settings', (await lgX.eval(`JSON.parse(localStorage.getItem('d4-tracker:v1:prefs')).comingUp`)) === 'helltide');
+    await lgX.eval(`document.querySelector('.tl-picks [data-pick="all"]').click()`);
+    check('All shows every event again', (await picks()).startsWith('All*') && new Set((await pickRows()).map((r) => r.split(':')[0])).size === 3);
     await advance(lgX, 5 * 60000 + 1000);
     await lgX.waitFor(`document.querySelector('${xLine}')?.textContent.startsWith('Expansion: Pirate Invasion')`, 6000).catch(() => {});
     check('at its start the card moves on to the next expansion site (Pirate Invasion, 00:55), without a caveat',

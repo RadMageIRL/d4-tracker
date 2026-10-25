@@ -102,7 +102,7 @@ for (const def of scheduleSource.definitions(nowMs())) {
   cardsEl.append(card.el);
 }
 
-const timeline = new Timeline();
+const timeline = new Timeline((choice) => change((p) => { p.comingUp = choice; }));
 byId('timeline-panel').append(timeline.el);
 const season = new SeasonPanel(SEASONS);
 byId('season-panel').append(season.el);
@@ -223,6 +223,13 @@ function orderNotes(kind: EventKind, now: number, timeZone: string): OrderNote[]
 function expansionTimelineNote(kind: EventKind, startMs: number): string | null {
   const x = kind === 'legion' ? detailsSource.legionExpansionAt(startMs) : null;
   return x ? `also ${x.region}` : null;
+}
+
+/** Coming up, one event picked: what is predicted for each start (the Helltide's regions, the World
+ *  Boss's boss, the Legion's candidates as in Later predictions); the cards label these Predicted. */
+function pickedTimelineNote(kind: EventKind, startMs: number, now: number): string | null {
+  const p = detailsSource.predicted(kind, startMs, now);
+  return (kind === 'worldBoss' ? p.identity : p.location) ?? null;
 }
 
 /** Where the expansion Legion's predicted site comes from, for the Legion card's About section only. */
@@ -434,7 +441,7 @@ function render(): void {
       extra: extraNote(st),
     });
   }
-  timeline.update(shown, c, expansionTimelineNote);
+  timeline.update(shown, c, prefs.comingUp, { all: expansionTimelineNote, one: (kind, startMs) => pickedTimelineNote(kind, startMs, c.nowMs) });
   season.update(c);
   sightingsPanel.update();
   map.update();

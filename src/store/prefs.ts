@@ -18,6 +18,9 @@ export type ConfidenceId = 'confirmed' | 'inferred' | 'unknown';
 export type RealmChoice = 'any' | 'seasonal' | 'eternal';
 export type RadarId = 'helltide' | 'worldBoss' | 'legion';
 export const RADAR_IDS: RadarId[] = ['helltide', 'worldBoss', 'legion'];
+/** What Coming up lists: every shown event, or one event's starts. */
+export type ComingUpChoice = 'all' | 'helltide' | 'worldBoss' | 'legion';
+export const COMING_UP_CHOICES: ComingUpChoice[] = ['all', 'helltide', 'worldBoss', 'legion'];
 /** How many minutes before a spawn the event radar shows it. */
 export const RADAR_LEADS = { worldBoss: [15, 30, 60], legion: [5, 10, 15] } as const;
 
@@ -49,6 +52,7 @@ export interface Prefs {
   radar: Record<RadarId, boolean>;
   /** Minutes before a spawn its radar marker appears. */
   radarLead: { worldBoss: number; legion: number };
+  comingUp: ComingUpChoice;
 }
 
 export const CARD_IDS: CardId[] = ['helltide', 'worldBoss', 'legion', 'map', 'season', 'sightings'];
@@ -70,6 +74,7 @@ export function defaultPrefs(): Prefs {
     realm: 'any',
     radar: { helltide: true, worldBoss: true, legion: true },
     radarLead: { worldBoss: 30, legion: 10 },
+    comingUp: 'all',
   };
 }
 
@@ -123,6 +128,7 @@ export function sanitize(raw: unknown): Prefs {
       worldBoss: pickLead(lead.worldBoss, RADAR_LEADS.worldBoss, d.radarLead.worldBoss),
       legion: pickLead(lead.legion, RADAR_LEADS.legion, d.radarLead.legion),
     },
+    comingUp: pickOne(raw.comingUp, COMING_UP_CHOICES, d.comingUp),
   };
 }
 
