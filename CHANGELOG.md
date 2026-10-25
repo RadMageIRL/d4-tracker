@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.7.0 (unreleased)
+## v0.7.0 (2026-10-24)
 
 - Expansion Legion intelligence. An expansion-region Legion runs beside the base-game one, and the
   Legion card now predicts its site, provisionally: one per Legion in a fixed order of four,

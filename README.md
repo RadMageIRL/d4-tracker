@@ -7,7 +7,7 @@ your browser from rules kept in this repository; it does not depend on any other
 
 Live at https://radmagelabs.com/d4/
 
-![Diablo IV Tracker v0.6 at 5:42 PM UTC on a first visit: an active Helltide with 13:00 left, predicted in Kehjistan, which the Sanctuary Event Radar outlines in red; the World Boss in 18:00 with its predicted boss, Azmodan, and a prompt to check the in-game map for boss and location; the next Legion in 8:00 with its four candidate sites folded and a prompt to check the in-game map; the coming-up timeline, the empty sightings log and the Season 15 panel](screenshots/dashboard.png)
+![Diablo IV Tracker v0.7 at 12:47 AM UTC on a first visit: an active Helltide with 8:00 left, predicted in Fractured Peaks and Skovos, which the Sanctuary Event Radar outlines in red; the World Boss in 13:00 with its predicted boss, Wandering Death, a second World Boss in an expansion region, and a prompt to check the in-game map for boss and location; the next Legion in 8:00 with its four candidate sites and its predicted expansion site folded, and a prompt to check the in-game map; six hours of coming-up starts, each Legion with its predicted expansion region; the empty sightings log and the Season 15 panel](screenshots/dashboard.png)
 
 ## What it shows
 
