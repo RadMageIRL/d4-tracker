@@ -767,10 +767,11 @@ try {
     check('Coming up notes each Legion start\'s predicted expansion region, compactly, without "predicted"', xLegionRows
       === 'legion:Legion starts (also Skovos) | legion:Legion starts (also Skovos) | legion:Legion starts (also Nahantu)', xLegionRows);
     check('and adds nothing to the other events\' rows', xRows.filter((r) => !r.startsWith('legion:')).every((r) => !r.includes('(also ')), JSON.stringify(xRows));
-    // Each Coming up label stays on one line on a desktop; on a phone a note may move down, but whole.
-    const oneLine = `[...document.querySelectorAll('#timeline-panel li')].filter(li => { const s = li.children[1]; return s.getBoundingClientRect().height > 1.5 * parseFloat(getComputedStyle(s).lineHeight); }).map(li => li.children[1].textContent)`;
-    check('Coming up labels do not wrap on a desktop', (await lgX.eval(oneLine)).length === 0, JSON.stringify(await lgX.eval(oneLine)));
+    // A Coming up note may move to the next line (how much fits depends on the system's fonts), but
+    // only whole: never split across lines, on a desktop or on a phone.
     const split = `[...document.querySelectorAll('#timeline-panel .tl-note')].filter(n => n.getClientRects().length !== 1).map(n => n.textContent)`;
+    const deskNotes = await lgX.eval("document.querySelectorAll('#timeline-panel .tl-note').length");
+    check('on a desktop no expansion note is split across lines', deskNotes > 0 && (await lgX.eval(split)).length === 0, `${deskNotes} notes; split ${JSON.stringify(await lgX.eval(split))}`);
     const xPhone = await open('2026-10-25T00:25:00Z', { timezone: 'UTC', width: 390, height: 844, mobile: true, prefs: {}, before: "localStorage.removeItem('d4-tracker:v1:observations')" });
     const phoneNotes = await xPhone.eval("document.querySelectorAll('#timeline-panel .tl-note').length");
     check('on a 390 px phone no expansion note is split across lines', phoneNotes > 0 && (await xPhone.eval(split)).length === 0, `${phoneNotes} notes; split ${JSON.stringify(await xPhone.eval(split))}`);
