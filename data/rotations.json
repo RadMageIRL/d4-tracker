@@ -64,8 +64,8 @@
       "enabled": true,
       "cycle": ["Siege of Chakhir Ruins", "Of Souls and Spirits", "Cosmic Archives", "Pirate Invasion"],
       "pin": { "start": "2026-10-24T22:00:00Z", "position": 0 },
-      "caveats": { "Cosmic Archives": "visibility may depend on campaign/stronghold progression" },
-      "basis": "Predicted, provisional: Blizzard documents no order. An expansion-region Legion runs beside the base-game one, one site per Legion in a fixed order of four, repeating every 100 minutes: Siege of Chakhir Ruins, Of Souls and Spirits (Nahantu), Cosmic Archives, Pirate Invasion (Skovos). Fitted to in-game checks on 2026-10-24; later checks fit it by map position. No Cosmic Archives marker has been seen in game: its turns may show none without campaign or stronghold progress.",
+      "caveats": { "Cosmic Archives": "shows once its stronghold is cleared" },
+      "basis": "Predicted, provisional: Blizzard documents no order. An expansion-region Legion runs beside the base-game one, one site per Legion in a fixed order of four, repeating every 100 minutes: Siege of Chakhir Ruins, Of Souls and Spirits (Nahantu), Cosmic Archives, Pirate Invasion (Skovos). Fitted to in-game checks on 2026-10-24; later checks fit it, by map position and by the event names. Cosmic Archives shows in game once its stronghold is cleared: its turns showed no second Legion before that, and it appeared at its predicted turn after.",
       "sources": [
         {
           "kind": "observation",

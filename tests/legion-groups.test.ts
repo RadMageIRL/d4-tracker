@@ -124,15 +124,16 @@ describe('the Legion card from the site groups', () => {
 
   it('predicts the expansion Legion apart from the base-game candidates, with its region', () => {
     const d = source([]).details('legion', occ('2026-10-25T00:05:00Z'), NOW);
-    expect(d.location).toMatchObject({ value: '4 candidates', basis: 'predicted' });
+    expect(d.location).toMatchObject({ value: '6 candidates', basis: 'predicted' });
     expect(d.candidates?.map((c) => c.place)).toEqual(['Haunted Wreckage', "Crusader's Monument", 'Norgoi Vigil', 'Temple of Rot']);
     expect(d.alsoPredicted).toEqual({ place: 'Of Souls and Spirits', region: 'Nahantu' });
+    expect(d.alsoOther).toEqual({ place: 'Pirate Invasion', region: 'Skovos' });
     expect(d.also).toBeUndefined();
   });
 
   it('gives the Cosmic Archives prediction its caveat, and no other site one', () => {
     expect(source([]).details('legion', occ('2026-10-25T00:30:00Z'), NOW).alsoPredicted)
-      .toEqual({ place: 'Cosmic Archives', region: 'Skovos', caveat: 'visibility may depend on campaign/stronghold progression' });
+      .toEqual({ place: 'Cosmic Archives', region: 'Skovos', caveat: 'shows once its stronghold is cleared' });
     for (const t of ['2026-10-25T00:05:00Z', '2026-10-25T00:55:00Z', '2026-10-25T01:20:00Z']) {
       expect(source([]).details('legion', occ(t), NOW).alsoPredicted?.caveat).toBeUndefined();
     }
@@ -155,11 +156,11 @@ describe('the Legion card from the site groups', () => {
     expect(src({ expansion: false })).toMatch(/An expansion-region Legion can run at the same time; it is not predicted\./);
   });
 
-  it('lists a later Legion\'s expansion site after its group\'s regions, with the caveat', () => {
+  it('lists a later Legion\'s expansion site after its group\'s regions, with the caveat, counting six candidates', () => {
     expect(source([]).predicted('legion', at('2026-10-25T00:30:00Z'), NOW)).toEqual({
-      location: '4 candidates: Fractured Peaks, Scosglen, Kehjistan; also Cosmic Archives, Skovos (visibility may depend on campaign/stronghold progression)',
+      location: '6 candidates: Fractured Peaks, Scosglen, Kehjistan; also Cosmic Archives, Skovos (shows once its stronghold is cleared)',
     });
-    expect(source([]).predicted('legion', at('2026-10-25T00:55:00Z'), NOW)).toEqual({ location: '4 candidates: Hawezar, Dry Steppes; also Pirate Invasion, Skovos' });
+    expect(source([]).predicted('legion', at('2026-10-25T00:55:00Z'), NOW)).toEqual({ location: '6 candidates: Hawezar, Dry Steppes; also Pirate Invasion, Skovos' });
   });
 
   it('still lights nothing on the radar with the expansion order in the data', () => {
@@ -205,11 +206,12 @@ describe('the Legion card from the site groups', () => {
 
   it('leaves the base-game candidates exactly as they are without the expansion order', () => {
     for (const t of ['2026-10-24T23:40:00Z', '2026-10-25T00:05:00Z', '2026-10-25T00:30:00Z']) {
-      const { alsoPredicted, location, ...withOrder } = source([]).details('legion', occ(t), NOW);
+      const { alsoPredicted, alsoOther, location, ...withOrder } = source([]).details('legion', occ(t), NOW);
       const { location: plain, ...without } = source([], { expansion: false }).details('legion', occ(t), NOW);
-      expect(alsoPredicted).toBeDefined();
+      expect(alsoPredicted && alsoOther).toBeDefined();
       expect(withOrder).toEqual(without);
-      expect(location.known && location.value).toBe(plain.known && plain.value);
+      // Only the count grows by the two expansion sites.
+      expect([location.known && location.value, plain.known && plain.value]).toEqual(['6 candidates', '4 candidates']);
     }
   });
 });

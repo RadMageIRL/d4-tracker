@@ -230,6 +230,14 @@ export class IntelligenceDetailsSource implements DetailsSource {
     return { place, region: this.regionName(region), ...(caveat ? { caveat } : {}) };
   }
 
+  /** The other expansion site of the same group's turns: the one two Legions on (none without a prediction). */
+  private legionExpansionOtherAt(startMs: number): { place: string; region: string; caveat?: string } | null {
+    const x = this.legionExpansionAt(startMs);
+    const periodMs = segmentAt(this.input.segments('legion'), startMs)?.schedule.periodMs;
+    const other = x && periodMs ? this.legionExpansionAt(startMs + 2 * periodMs) : null;
+    return other && other.place !== x?.place ? other : null;
+  }
+
   /** "Caen Adar, Scosglen": the arena of a region when the data has exactly one there. */
   private arenaIn(region: string): string {
     const here = this.input.arenas.filter((a) => a.region === region);
@@ -266,8 +274,10 @@ export class IntelligenceDetailsSource implements DetailsSource {
       const sites = this.legionGroupAt(startMs);
       const regions = [...new Set((sites ?? []).map((s) => this.placeRegion('legion', s)).filter((r): r is string => !!r))];
       const x = this.legionExpansionAt(startMs);
+      // Counted as on the card: the group's sites and the two expansion sites of its turns.
+      const count = (sites?.length ?? 0) + (x ? 1 : 0) + (this.legionExpansionOtherAt(startMs) ? 1 : 0);
       const parts = [
-        sites?.length ? `${sites.length} candidates: ${regions.map((r) => this.regionName(r)).join(', ')}` : '',
+        sites?.length ? `${count} candidates: ${regions.map((r) => this.regionName(r)).join(', ')}` : '',
         x ? `also ${x.place}, ${x.region}${x.caveat ? ` (${x.caveat})` : ''}` : '',
       ].filter(Boolean);
       if (parts.length) out.location = parts.join('; ');
@@ -438,15 +448,18 @@ export class IntelligenceDetailsSource implements DetailsSource {
       if (sites?.length) {
         // A seen expansion Legion replaces the predicted one.
         const xPredicted = also ? null : this.legionExpansionAt(occurrence.startMs);
+        const other = also ? null : this.legionExpansionOtherAt(occurrence.startMs);
+        const count = sites.length + (xPredicted ? 1 : 0) + (other ? 1 : 0);
         const xNote = this.input.legionExpansion
           ? 'An expansion-region Legion runs at the same time; its site is predicted on its own, from a fixed order of expansion sites.'
           : 'An expansion-region Legion can run at the same time; it is not predicted.';
         const source = `Predicted: the base-game Legion's site group alternates every Legion, so it is at one of these ${sites.length} sites; which one is not predicted. ${xNote}${toldNote}`;
         return {
-          location: known(`${sites.length} candidates`, source, 'predicted', 'inferred'),
+          location: known(`${count} candidates`, source, 'predicted', 'inferred'),
           candidates: sites.map((s) => ({ place: s, region: this.regionName(this.placeRegion('legion', s) ?? '') })),
           ...(also ? { also } : {}),
           ...(xPredicted ? { alsoPredicted: xPredicted } : {}),
+          ...(other ? { alsoOther: other } : {}),
         };
       }
       const seen = g.fact && also ? known(`${g.fact.value}; also ${also}`, g.fact.source, 'seen') : g.fact ?? (also ? known(`also ${also}`, x.fact!.source, 'seen') : null);

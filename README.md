@@ -7,7 +7,7 @@ your browser from rules kept in this repository; it does not depend on any other
 
 Live at https://radmagelabs.com/d4/
 
-![Diablo IV Tracker v0.7 at 12:47 AM UTC on a first visit: an active Helltide with 8:00 left, predicted in Fractured Peaks and Skovos, which the Sanctuary Event Radar outlines in red; the World Boss in 13:00 with its predicted boss, Wandering Death, a second World Boss in an expansion region, and a prompt to check the in-game map for boss and location; the next Legion in 8:00 with its four candidate sites and its predicted expansion site folded, and a prompt to check the in-game map; six hours of coming-up starts, each Legion with its predicted expansion region; the empty sightings log and the Season 15 panel](screenshots/dashboard.png)
+![Diablo IV Tracker v0.7.1 at 12:47 AM UTC on a first visit: an active Helltide with 8:00 left, predicted in Fractured Peaks and Skovos, which the Sanctuary Event Radar outlines in red; the World Boss in 13:00 with its predicted boss, Wandering Death, a second World Boss in an expansion region, and a prompt to check the in-game map for boss and location; the next Legion in 8:00 with its six candidate sites folded, four base-game and two expansion, and a prompt to check the in-game map; six hours of coming-up starts, each Legion with its predicted expansion region; the empty sightings log and the Season 15 panel](screenshots/dashboard.png)
 
 ## What it shows
 
@@ -95,14 +95,15 @@ Legion sites are predicted as a group. The base-game Legion comes from one of tw
 sites (Kor Dragan, Carrowcrest Ruins, Dilapidated Aqueducts, Alcarnus; or Haunted Wreckage,
 Crusader's Monument, Norgoi Vigil, Temple of Rot), and the group alternates every Legion: community
 tracker records of the group fit this for every recorded Legion since 2026-03-18. The Legion card
-shows "4 possible sites", folded, labeled Predicted; which one it is, is not predicted, so the radar
-shows a Legion only once its site is seen. An expansion-region Legion runs at the same time, and
-its site is predicted on its own, provisionally: one per Legion in a fixed order of four, repeating
-every 100 minutes (Siege of Chakhir Ruins, Of Souls and Spirits in Nahantu; Cosmic Archives, Pirate
-Invasion in Skovos), fitted to in-game checks. It is folded with the candidates, labeled Predicted,
-and lights nothing on the radar. No Cosmic Archives marker has been seen in game; its visibility
-may depend on campaign or stronghold progress. One you log as seen shows beside the candidates
-instead.
+shows "6 candidates", folded, labeled Predicted: the group's four sites and two expansion sites.
+Which base-game site it is, is not predicted, so the radar shows a Legion only once its site is
+seen. An expansion-region Legion runs at the same time, and its site is predicted on its own,
+provisionally: one per Legion in a fixed order of four, repeating every 100 minutes (Siege of
+Chakhir Ruins, Of Souls and Spirits in Nahantu; Cosmic Archives, Pirate Invasion in Skovos), fitted
+to in-game checks. The predicted one is listed first, labeled Predicted, then the other expansion
+site of that group's turns; neither lights anything on the radar. Cosmic Archives shows in game
+only once its stronghold is cleared: its turns showed no second Legion before that, and it appeared
+at its predicted turn after. One you log as seen shows beside the candidates instead.
 
 Without these models in the data, the tracker looks for a repeating order in your own sightings
 instead. Such an order is never Confirmed, however many sightings fit: only Blizzard's own words

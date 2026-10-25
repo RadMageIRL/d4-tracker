@@ -157,8 +157,8 @@ export class EventCard {
   private candidatesLabel = h('span', {});
   private candidatesAlso = h('span', { class: 'hint' });
   private candidatesList = h('ul', {});
-  /** The expansion-region Legion predicted for the same start, apart from the base-game candidates. */
-  private candidatesExpansion = h('p', { class: 'candidates-expansion', hidden: true });
+  /** The expansion-region Legion's two candidates, the predicted one first, apart from the base-game ones. */
+  private candidatesExpansion = h('div', { class: 'candidates-expansion', hidden: true });
   private candidates = h('details', { class: 'candidates' },
     h('summary', {}, this.candidatesLabel, h('span', { class: 'hint' }, ' · predicted'), this.candidatesAlso), this.candidatesList,
     this.candidatesExpansion);
@@ -242,7 +242,7 @@ export class EventCard {
 
     if (this.identityRow) showFact(this.identityRow, st.details.identity);
     showFact(this.locationRow, st.details.location);
-    this.showCandidates(st.details.candidates, st.details.also, st.details.alsoPredicted);
+    this.showCandidates(st.details.candidates, st.details.also, st.details.alsoPredicted, st.details.alsoOther);
     // Nothing known yet: the row waits until there is (the reason is under About this card).
     if (this.identityRow) showRow(this.identityRow, !!st.details.identity?.known);
     showRow(this.locationRow, st.details.location.known || !!st.details.candidates?.length);
@@ -270,9 +270,10 @@ export class EventCard {
     this.renderTrust(st, extras);
   }
 
-  /** The candidate sites in place of a one-line location: "4 candidates · predicted", opened for the list. */
+  /** The candidate sites in place of a one-line location: "6 candidates · predicted" (four base-game,
+   *  two expansion), opened for the list. */
   private showCandidates(list: { place: string; region: string }[] | undefined, also: string | undefined,
-    alsoPredicted: EventDetails['alsoPredicted']): void {
+    alsoPredicted: EventDetails['alsoPredicted'], alsoOther: EventDetails['alsoOther']): void {
     const on = !!list?.length;
     // In the row only while it has something to show, so the row's text is just what is shown.
     if (on && !this.candidates.isConnected) this.locationRow.dd.append(this.candidates);
@@ -282,18 +283,21 @@ export class EventCard {
     if (!list?.length) return;
     setText(this.locationRow.value, '');
     setText(this.locationRow.hint, '');
-    setText(this.candidatesLabel, `${list.length} candidates`);
+    // The predicted expansion site first, then the other one of this group's turns.
+    const xs = [alsoPredicted && { ...alsoPredicted, predicted: true }, alsoOther && { ...alsoOther, predicted: false }]
+      .filter((x) => !!x);
+    setText(this.candidatesLabel, `${list.length + xs.length} candidates`);
     setText(this.candidatesAlso, also ? ` · also ${also} (seen)` : '');
     const items = list.map((c) => `${c.place}, ${c.region}`);
     if ([...this.candidatesList.children].map((li) => li.textContent).join('|') !== items.join('|')) {
       this.candidatesList.replaceChildren(...items.map((t) => h('li', {}, t)));
     }
-    const x = alsoPredicted;
-    const xText = x ? `Expansion: ${x.place}, ${x.region} · Predicted${x.caveat ? ` · ${x.caveat}` : ''}` : '';
+    const hint = (x: (typeof xs)[number]) => [x.predicted ? ' · Predicted' : '', x.caveat ? ` · ${x.caveat}` : ''].join('');
+    const xText = xs.map((x) => `Expansion: ${x.place}, ${x.region}${hint(x)}`).join('');
     if (this.candidatesExpansion.textContent !== xText) {
-      this.candidatesExpansion.replaceChildren(...(x ? [`Expansion: ${x.place}, ${x.region}`, h('span', { class: 'hint' }, ` · Predicted${x.caveat ? ` · ${x.caveat}` : ''}`)] : []));
+      this.candidatesExpansion.replaceChildren(...xs.map((x) => h('p', {}, `Expansion: ${x.place}, ${x.region}`, h('span', { class: 'hint' }, hint(x)))));
     }
-    this.candidatesExpansion.hidden = !x;
+    this.candidatesExpansion.hidden = !xs.length;
   }
 
   private renderTrust(st: EventStatus, extras: CardExtras): void {

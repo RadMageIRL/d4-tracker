@@ -58,6 +58,8 @@ export interface EventDetails {
   also?: string;
   /** Legion: the expansion-region site predicted for the same start, folded with the candidates. */
   alsoPredicted?: { place: string; region: string; caveat?: string };
+  /** Legion: the other expansion site of this group's turns, listed after the predicted one. */
+  alsoOther?: { place: string; region: string; caveat?: string };
 }
 
 export type Phase = 'active' | 'waiting' | 'unknown';

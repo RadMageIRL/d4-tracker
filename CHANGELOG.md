@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.7.1 (2026-10-25)
+
+- Six Legion candidates. The Legion card's Location reads "6 candidates · predicted": the group's
+  four base-game sites and the two expansion sites of its turns (Siege of Chakhir Ruins or Cosmic
+  Archives with one group, Of Souls and Spirits or Pirate Invasion with the other). Open it for all
+  six; the expansion site the order predicts is listed first, labeled Predicted. Later predictions
+  count the same way.
+- Cosmic Archives seen in game. Its Legion appeared at its predicted turn once its stronghold was
+  cleared, after earlier turns showed no second Legion, so its line now says "shows once its
+  stronghold is cleared". All four expansion sites have now been seen in game.
+
 ## v0.7.0 (2026-10-24)
 
 - Expansion Legion intelligence. An expansion-region Legion runs beside the base-game one, and the
