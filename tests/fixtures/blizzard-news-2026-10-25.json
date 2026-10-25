@@ -1,0 +1,122 @@
+{
+  "_note": "Blizzard News' Diablo IV list (https://news.blizzard.com/en-us/api/feed/diablo-4) as fetched on 2026-10-25, cut to its first 10 posts and the fields the tracker reads, plus summary. radmagelabs.com/d4/news.json passes this list through.",
+  "contentItems": [
+    {
+      "contentId": "blt4ed03a1897ef090c",
+      "contentType": "blogs",
+      "properties": {
+        "title": "The 3.3.0 PTR: What You Need to Know",
+        "category": "News",
+        "lastUpdated": "2026-10-22T17:00:00Z",
+        "newsUrl": "https://news.blizzard.com/en-us/article/24302578/the-3-3-0-ptr-what-you-need-to-know",
+        "summary": "Preview significant changes to War Plans, the new Horadric Items system, and more in the upcoming 3.3.0 PTR. "
+      }
+    },
+    {
+      "contentId": "blt593f31a2dd0511e4",
+      "contentType": "blogs",
+      "properties": {
+        "title": "Diablo IV Patch Notes",
+        "category": "News",
+        "lastUpdated": "2026-09-25T17:00:00Z",
+        "newsUrl": "https://news.blizzard.com/en-us/article/24295395/diablo-iv-patch-notes",
+        "summary": "We will continually update this article with all patches the development team implements for Diablo IV. "
+      }
+    },
+    {
+      "contentId": "blte051f0bb26e5ecab",
+      "contentType": "blogs",
+      "properties": {
+        "title": "Diablo IV: What's Next Panel Recap",
+        "category": "Recap",
+        "lastUpdated": "2026-09-13T18:51:34Z",
+        "newsUrl": "https://news.blizzard.com/en-us/article/24297205/diablo-iv-what-s-next-panel-recap",
+        "summary": "Diablo IV unveils the Season of Hell's Legacy, a season full of iconic moments from Diablo's past, as well as an insider look at the development of our new class, the Amazon. Catch up on our announcements from the What's Next panel at BlizzCon 2026. "
+      }
+    },
+    {
+      "contentId": "blt3ca29c59c75561e7",
+      "contentType": "blogs",
+      "properties": {
+        "title": "Diablo V: Forging the Next Era",
+        "category": "Recap",
+        "lastUpdated": "2026-09-12T21:20:00Z",
+        "newsUrl": "https://news.blizzard.com/en-us/article/24297204/diablo-v-forging-the-next-era",
+        "summary": "Diablo V arrives Spring 2029. Read on for the burning details revealed during our BlizzCon panel, including the next era’s darker vision of Sanctuary and the road ahead. "
+      }
+    },
+    {
+      "contentId": "blt37791332d7dbf273",
+      "contentType": "blogs",
+      "properties": {
+        "title": "The Divine Bovine Community Challenge",
+        "category": "Community",
+        "lastUpdated": "2026-09-12T18:32:14Z",
+        "newsUrl": "https://news.blizzard.com/en-us/article/24295385/the-divine-bovine-community-challenge",
+        "summary": "Gather your herd and band together to take down Moophisto. End his Mad Cow rage to unlock a reward for all who oppose his reign of udder chaos. "
+      }
+    },
+    {
+      "contentId": "blt41fcba5a8e378bf3",
+      "contentType": "blogs",
+      "properties": {
+        "title": "Diablo’s Next Era Revealed at BlizzCon 2026: Opening Ceremonies Recap",
+        "category": "Recap",
+        "lastUpdated": "2026-09-12T18:21:00Z",
+        "newsUrl": "https://news.blizzard.com/en-us/article/24301509/diablos-next-era-revealed-at-blizzcon-2026-opening-ceremonies-recap",
+        "summary": "Diablo V is coming in Spring 2029, a Diablo animated series is being developed with Netflix, the Amazon is the next class in Diablo IV, and more. Catch up on our announcements from Opening Ceremonies at BlizzCon 2026. "
+      }
+    },
+    {
+      "contentId": "bltcb300afd3e986f72",
+      "contentType": "blogs",
+      "properties": {
+        "title": "Diablo V is Coming Spring 2029",
+        "category": "News",
+        "lastUpdated": "2026-09-12T18:20:45Z",
+        "newsUrl": "https://news.blizzard.com/en-us/article/24297203/diablo-v-is-coming-spring-2029",
+        "summary": "The next dark era of the Diablo saga begins in Diablo V, coming Spring 2029. "
+      }
+    },
+    {
+      "contentId": "blt1dbe2c23c5925ac0",
+      "contentType": "blogs",
+      "properties": {
+        "title": "Celebrate 30 Years of Diablo in Season of Hell's Legacy",
+        "category": "Season Update",
+        "lastUpdated": "2026-09-12T18:15:00Z",
+        "newsUrl": "https://news.blizzard.com/en-us/article/24295394/celebrate-30-years-of-diablo-in-season-of-hell-s-legacy",
+        "summary": "Celebrate Diablo's 30th Anniversary in a battle for the very soul of Sanctuary. Relive past memories, battle the Prime Evils, and rediscover tantalizing secrets long forgotten. "
+      }
+    },
+    {
+      "contentId": "bltcc2738232dd5bfdd",
+      "contentType": "blogs",
+      "properties": {
+        "title": "Your Preview Guide to Diablo at BlizzCon 2026",
+        "category": "Guide",
+        "lastUpdated": "2026-09-08T17:33:00Z",
+        "newsUrl": "https://news.blizzard.com/en-us/article/24293056/your-preview-guide-to-diablo-at-blizzcon-2026",
+        "summary": "BlizzCon 2026 brings a full panel schedule covering Diablo, a roster of amazing content creators, three BlizzCon Twitch drops, a first-ever Twitch chat badge, and a new season-themed Twitch cosmetic. Whether you're attending in person or at home, there's a lot to follow this year! "
+      }
+    },
+    {
+      "contentId": "blt0fa2b22be54455be",
+      "contentType": "blogs",
+      "properties": {
+        "title": "The 3.2.0 PTR: What You Need to Know",
+        "category": "PTR",
+        "lastUpdated": "2026-07-30T17:00:00Z",
+        "newsUrl": "https://news.blizzard.com/en-us/article/24292852/the-3-2-0-ptr-what-you-need-to-know",
+        "summary": "Preview seasonal Soul Splinters, new legacy Uniques, Mythic Unique changes, new Charms, and more in the upcoming 3.2.0 PTR. "
+      }
+    }
+  ],
+  "pagination": {
+    "offset": 0,
+    "limit": 15,
+    "feedOffset": 0,
+    "feedLimit": 15,
+    "hasNextPage": true
+  }
+}

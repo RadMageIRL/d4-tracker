@@ -71,6 +71,8 @@ export interface Prefs {
   comingUpHours: Record<ComingUpChoice, number>;
   /** Events starred on their cards, for Coming up's Starred list. Separate from reminders. */
   starred: Record<RadarId, boolean>;
+  /** Latest news was left open: it opens (and loads) again next time. */
+  newsOpen: boolean;
 }
 
 export const CARD_IDS: CardId[] = ['helltide', 'worldBoss', 'legion', 'map', 'season', 'sightings'];
@@ -98,6 +100,7 @@ export function defaultPrefs(): Prefs {
     // A day of World Bosses is about seven spawns.
     comingUpHours: { all: 6, starred: 6, helltide: 6, worldBoss: 24, legion: 6 },
     starred: { helltide: false, worldBoss: false, legion: false },
+    newsOpen: false,
   };
 }
 
@@ -160,6 +163,7 @@ export function sanitize(raw: unknown): Prefs {
     comingUp: pickOne(raw.comingUp, COMING_UP_CHOICES, d.comingUp),
     comingUpHours: Object.fromEntries(COMING_UP_CHOICES.map((c) => [c, pickLead(hours[c], COMING_UP_HOURS[c], d.comingUpHours[c])])) as Prefs['comingUpHours'],
     starred: Object.fromEntries(RADAR_IDS.map((id) => [id, pickBool(starred[id], d.starred[id])])) as Prefs['starred'],
+    newsOpen: pickBool(raw.newsOpen, d.newsOpen),
   };
 }
 

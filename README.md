@@ -2,12 +2,13 @@
 
 Helltide, World Boss and Legion countdowns for Diablo IV, in your own time zone, sized for a second
 monitor. It is one static page: no account, no backend, no ads, no tracking, and it makes no
-requests to any other site (its Content-Security-Policy blocks them). Every timer is calculated in
-your browser from rules kept in this repository; it does not depend on any other tracker.
+requests to any other site (its Content-Security-Policy blocks them). The one thing it fetches is
+Latest news, and only once you open it, from its own address. Every timer is calculated in your
+browser from rules kept in this repository; it does not depend on any other tracker.
 
 Live at https://radmagelabs.com/d4/
 
-![Diablo IV Tracker v0.7.3 at 12:47 AM UTC on a first visit: an active Helltide with 8:00 left, predicted in Fractured Peaks and Skovos, which the Sanctuary Event Radar outlines in red; the World Boss in 13:00 with its predicted boss, Wandering Death, a star beside each card name and a Mark done link on the last spawn, a second World Boss in an expansion region, and a prompt to check the in-game map for boss and location; the next Legion in 8:00 with its six candidate sites folded, four base-game and two expansion, and a prompt to check the in-game map; six hours of coming-up starts with a how-far-ahead dropdown, Add to calendar, and All, starred, Helltide, World Boss and Legion picks, each Legion with its predicted expansion region; the empty sightings log and the Season 15 panel](screenshots/dashboard.png)
+![Diablo IV Tracker v0.7.4 at 12:47 AM UTC on a first visit: the Latest news bar from Blizzard News, closed, above the cards; an active Helltide with 8:00 left, predicted in Fractured Peaks and Skovos, which the Sanctuary Event Radar outlines in red; the World Boss in 13:00 with its predicted boss, Wandering Death, a star beside each card name and a Mark done link on the last spawn, a second World Boss in an expansion region, and a prompt to check the in-game map for boss and location; the next Legion in 8:00 with its six candidate sites folded, four base-game and two expansion, and a prompt to check the in-game map; six hours of coming-up starts with a how-far-ahead dropdown, Add to calendar, and All, starred, Helltide, World Boss and Legion picks, each Legion with its predicted expansion region; the empty sightings log and the Season 15 panel](screenshots/dashboard.png)
 
 ## What it shows
 
@@ -33,6 +34,12 @@ Live at https://radmagelabs.com/d4/
   what the list shows as a calendar file (.ics) for Google Calendar, Outlook or Apple Calendar: each
   start with its prediction written out and a reminder (your own reminder time for that event,
   otherwise 10 minutes before). Importing it again updates those starts instead of adding copies.
+- **Latest news.** A bar above the cards, closed until you open it, with the eight newest posts
+  from Blizzard News (patch notes, PTRs, season updates and the rest), each with its category, its
+  date and a link to the post on news.blizzard.com. Opening it asks radmagelabs.com, which passes
+  Blizzard's Diablo IV news list through, so your browser does not contact Blizzard. The headlines
+  are kept in this browser for 15 minutes, the bar remembers whether you left it open, and compact
+  view and the pop-out leave it out. At radmageirl.github.io it links to Blizzard News instead.
 - **Season.** The live season, when it started and how many days in it is, its end and the next
   season's start once Blizzard announces them, announced windows such as a PTR, and every past
   season with its dates and length.
@@ -141,6 +148,10 @@ schedule is added with that date and the switch happens on its own.
 - **Which chests are active right now.** Chest spots are a fixed set in each Helltide zone and the
   active ones move during a Helltide, by players' reports. Only someone in that Helltide can say
   which are active; a region's details keep the spots you log and let you mark the active ones.
+- **Realmwalkers.** Not tracked: they were seasonal. In Season 6 one spawned every 15 minutes in a
+  rotating region; in Season 14 they came out of Pandemonium Ruptures. Neither runs in Season 15,
+  and nothing in the game schedules them now, so there is no time to count down to. They will be
+  looked at again when Season 16's mechanics are announced.
 
 ## Time and clocks
 
@@ -196,7 +207,7 @@ Needs Node 20.19+ or 22.12+.
 
 ```
 npm install
-npm run dev        # local server with reload, http://localhost:5173/
+npm run dev        # local server with reload, http://localhost:5173/ (passes news.json through)
 npm test           # unit tests and the data checks (vitest)
 npm run typecheck
 npm run build      # type check, then dist/index.html
@@ -213,7 +224,9 @@ the World Boss double spawn, a logged boss and a marked Helltide region showing 
 ends, the event radar (the right regions lit, two Helltides at once, lead-up windows, pulses only
 near the event, expiry, the same story as the cards, reduced motion, phone and compact), chest
 spots marked active, expiring and placed on the drawing, realms kept apart, a hostile import file,
-and that no request leaves the site. `-- --shots DIR` saves screenshots.
+Latest news (closed and silent until opened, the headlines from a saved copy of Blizzard's list, the
+kept copy, Blizzard not answering, GitHub Pages, opened from disk, compact and pop-out), and that no
+request leaves the site. `-- --shots DIR` saves screenshots.
 
 Layout:
 
@@ -221,10 +234,10 @@ Layout:
 data/          the tracker's own data: events, seasons, locations, the World Boss rotation, shared sightings (JSON)
 src/data/      the data's types and checks (a bad edit fails the build) and loader
 src/engine/    schedules, event state, seasons, clock check, reminders, sightings analysis, the
-               World Boss rotation, order predictions, chest spots, title
+               World Boss rotation, order predictions, chest spots, title, news list reading
 src/adapters/  where data comes from: local schedules; details from sightings and predictions
-src/ui/        cards, timeline, season panel, map, sightings, settings, notifications
-src/store/     preferences and sightings in localStorage (key prefix d4-tracker:v1:)
+src/ui/        cards, timeline, season panel, map, sightings, settings, notifications, news bar
+src/store/     preferences, sightings and the latest headlines in localStorage (key prefix d4-tracker:v1:)
 tests/         unit tests, fixtures and the browser smoke test
 ```
 
@@ -258,6 +271,13 @@ on push); the repository's Pages source must be set to "GitHub Actions".
 GitHub Pages serves it at https://radmageirl.github.io/d4-tracker/, and https://radmagelabs.com/d4/
 serves the same file through the RadMage Labs site. Browsers keep settings and sightings per
 address, so each address has its own.
+
+Latest news reads `news.json` next to the page. Blizzard's Diablo IV news list
+(https://news.blizzard.com/en-us/api/feed/diablo-4) does not allow cross-origin reads, so
+radmagelabs.com rewrites `/d4/news.json` to it. GitHub Pages cannot, so at `/d4-tracker/` the bar
+links to Blizzard News instead. The list is the one Blizzard's own news page reads, not a published
+feed: if it changes, the bar says the news could not load and links to Blizzard News, and the
+timers carry on. `npm run dev` and `npm run preview` pass `news.json` through the same way.
 
 ## Dependencies and licenses
 

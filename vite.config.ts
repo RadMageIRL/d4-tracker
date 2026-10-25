@@ -42,9 +42,17 @@ function singleFile(): Plugin {
 /** Inline script and styles, a data: icon, and requests only to the page's own origin. */
 export const CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'self'; base-uri 'none'; form-action 'none'";
 
+// npm run dev and npm run preview pass news.json through to Blizzard's list, the way radmagelabs.com
+// does, so Latest news can be seen locally.
+const NEWS_PROXY = {
+  '/news.json': { target: 'https://news.blizzard.com', changeOrigin: true, rewrite: () => '/en-us/api/feed/diablo-4' },
+};
+
 export default defineConfig({
   base: './',
   plugins: [singleFile()],
+  server: { proxy: NEWS_PROXY },
+  preview: { proxy: NEWS_PROXY },
   build: {
     outDir: 'dist',
     cssCodeSplit: false,

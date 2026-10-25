@@ -13,6 +13,7 @@ import { detectResume, estimateClock, SAMPLE_GAP_MS, type ClockEstimate, type Cl
 import { eventStatus, hasExtraSpawn, isInstant, type EventKind, type EventStatus } from './engine/events';
 import { calendarDate, clockTime, spanWords, zoneName } from './engine/format';
 import { icsCalendar, type CalendarEvent } from './engine/ics';
+import { isFresh, NEWS_PATH, NEWS_REFRESH_MS, NEWS_TIMEOUT_MS, parseNews, type NewsItem } from './engine/news';
 import { merge } from './engine/observations';
 import { radarLights, type RadarLight } from './engine/radar';
 import { activeOccurrence, lastStart, nextStart } from './engine/segments';
@@ -20,11 +21,13 @@ import { dueReminders, type ReminderRule, type ScheduleMap } from './engine/remi
 import { daysSince } from './engine/seasons';
 import { tabTitle } from './engine/title';
 import { anchorEvidence, anchorProgress } from './engine/verification';
+import { loadNews, saveNews } from './store/news';
 import { loadObservations, saveObservations } from './store/observations';
 import { DONE_KINDS, loadPrefs, PREFIX, savePrefs, type ComingUpChoice, type DoneKind, type Prefs } from './store/prefs';
 import { EventCard, type OrderNote, type ViewContext } from './ui/cards';
 import { byId, h, setText } from './ui/dom';
 import { SanctuaryMap, type ChestView } from './ui/map';
+import { NewsBar, type NewsStatus } from './ui/news';
 import { showSystemNotification } from './ui/notify';
 import { SeasonPanel } from './ui/season';
 import { renderSettings } from './ui/settings';
@@ -110,6 +113,55 @@ for (const def of scheduleSource.definitions(nowMs())) {
 const SHOW_NEXT_STRIP = false;
 const strip = SHOW_NEXT_STRIP ? new NextStrip() : null;
 if (strip) cardsEl.before(strip.el);
+
+// Latest news, above the cards. It starts closed and asks for nothing until it is opened; then the
+// headlines are kept in this browser for 15 minutes and asked for again while it stays open. Hidden
+// in compact view and the pop-out, which keep to the countdowns.
+const news: { items: NewsItem[] | null; fetchedAt: number | null; checkedAt: number; status: NewsStatus; loading: boolean } = {
+  items: null, fetchedAt: null, checkedAt: -Infinity, status: 'idle', loading: false,
+};
+const newsBar = new NewsBar((open) => { if (open !== prefs.newsOpen) change((p) => { p.newsOpen = open; }); });
+byId('app').prepend(newsBar.el);
+newsBar.setOpen(prefs.newsOpen);
+const newsShown = () => prefs.newsOpen && !prefs.compact && !popout;
+
+/** The list from this site. A 404 page means this address does not pass it through (GitHub Pages);
+ *  Blizzard's own "not found" comes back as JSON and counts as a failure. */
+async function fetchNews(): Promise<{ missing?: true; items?: NewsItem[] }> {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), NEWS_TIMEOUT_MS);
+  try {
+    const res = await fetch(NEWS_PATH, { credentials: 'omit', referrerPolicy: 'no-referrer', signal: ctl.signal });
+    if (res.status === 404 && !(res.headers.get('Content-Type') ?? '').includes('json')) return { missing: true };
+    return res.ok ? { items: parseNews(await res.json()) } : {};
+  } catch {
+    return {};
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function loadNewsNow(): Promise<void> {
+  if (news.loading) return;
+  const cache = loadNews();
+  if (cache) Object.assign(news, { items: cache.items, fetchedAt: cache.fetchedAt, checkedAt: cache.fetchedAt, status: 'ok' });
+  if (cache && isFresh(cache, Date.now())) { render(); return; }
+  if (!location.protocol.startsWith('http')) { news.status = 'unavailable'; render(); return; }
+  news.loading = true;
+  news.checkedAt = Date.now();
+  render();
+  const result = await fetchNews();
+  news.loading = false;
+  if (result.missing) {
+    news.status = 'unavailable';
+  } else if (result.items?.length) {
+    Object.assign(news, { items: result.items, fetchedAt: Date.now(), status: 'ok' });
+    saveNews({ fetchedAt: news.fetchedAt!, items: result.items });
+  } else {
+    news.status = news.items ? 'stale' : 'failed';
+  }
+  render();
+}
 
 function isDoneKind(kind: EventKind): kind is DoneKind {
   return (DONE_KINDS as EventKind[]).includes(kind);
@@ -400,6 +452,7 @@ function refresh(): void {
 window.addEventListener('storage', (e) => {
   if (e.key !== `${PREFIX}prefs`) return;
   prefs = loadPrefs();
+  newsBar.setOpen(prefs.newsOpen);
   refresh();
 });
 
@@ -528,6 +581,8 @@ function render(): void {
     done,
     starred: new Set(shown.map((s) => s.kind).filter((k) => prefs.starred[k])),
   });
+  if (newsShown() && !news.loading && news.status !== 'unavailable' && Date.now() - news.checkedAt >= NEWS_REFRESH_MS) void loadNewsNow();
+  newsBar.update({ status: news.loading && !news.items ? 'loading' : news.status, items: news.items, fetchedAt: news.fetchedAt }, c);
   season.update(c);
   sightingsPanel.update();
   map.update();

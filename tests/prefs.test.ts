@@ -97,6 +97,12 @@ describe('sanitize', () => {
     expect(sanitize({ starred: { legion: true } }).reminders).toEqual(defaultPrefs().reminders);
     expect(sanitize({ reminders: { legion: [5] } }).starred).toEqual(defaultPrefs().starred);
   });
+
+  it('starts with Latest news closed and remembers it left open', () => {
+    expect(defaultPrefs().newsOpen).toBe(false);
+    expect(sanitize({ newsOpen: true }).newsOpen).toBe(true);
+    expect(sanitize({ newsOpen: 'yes' }).newsOpen).toBe(false);
+  });
 });
 
 describe('storage key', () => {

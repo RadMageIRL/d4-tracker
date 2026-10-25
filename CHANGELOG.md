@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.7.4 (2026-10-25)
+
+- Latest news. A bar above the cards, closed until you open it, with the eight newest posts from
+  Blizzard News, each with its category (News, Patch Notes, PTR, Season Update...) and date, linked
+  to the post. Opening it asks radmagelabs.com, which passes Blizzard's Diablo IV news list through;
+  nothing is fetched until then. The headlines are kept in this browser for 15 minutes and checked
+  again every 15 minutes while the bar stays open; it remembers being left open. Where the list
+  cannot load (GitHub Pages, a file opened from disk, Blizzard not answering) the bar says so and
+  links to Blizzard News; the timers are never affected. Compact view and the pop-out leave it out.
+- Realmwalkers are not tracked, and the README now says why: they were seasonal (every 15 minutes
+  in a rotating region in Season 6, out of Pandemonium Ruptures in Season 14), neither runs in
+  Season 15, and nothing in the game schedules them now. They will be looked at again when Season
+  16's mechanics are announced.
+
 ## v0.7.3 (2026-10-25)
 
 - How far ahead. A small dropdown beside Coming up's heading replaces "next 6 hours": 6, 12, 18 or

@@ -35,6 +35,14 @@ let serverShiftMs = 0;
 //   'stale'        the copy's original Date and no Age (a misbehaving cache)
 //   'inconsistent' a Date that jumps by up to an hour on every answer, and a nonsense Age
 let cacheMode = 'none';
+// /d4/news.json stands in for radmagelabs.com passing Blizzard's Diablo IV list through:
+//   'ok'   the saved copy in tests/fixtures
+//   'down' a 502 (Blizzard or the proxy not answering)
+//   'gone' Blizzard's own JSON "not found" (the list moved)
+// Under /d4-tracker/ nothing answers there, as on GitHub Pages.
+let newsMode = 'ok';
+let newsRequests = 0;
+const NEWS_SAVED = readFileSync(new URL('./fixtures/blizzard-news-2026-10-25.json', import.meta.url));
 let storedAt = null;
 const CACHE_AGE_S = 120;
 function setCache(mode) { cacheMode = mode; storedAt = null; }
@@ -46,6 +54,13 @@ const server = createServer((req, res) => {
   const date = new Date(dateMs).toUTCString();
   const age = { none: {}, cdn: { Age: ageS }, standard: { Age: ageS }, stale: {}, inconsistent: { Age: String(Math.floor(Math.random() * 1e6)) } }[cacheMode];
   const url = new URL(req.url, 'http://x');
+  if (url.pathname === '/d4/news.json') {
+    newsRequests++;
+    if (newsMode === 'down') { res.writeHead(502, { Date: date }); res.end(); return; }
+    res.writeHead(newsMode === 'gone' ? 404 : 200, { Date: date, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+    res.end(newsMode === 'gone' ? '{"error":{"status":404,"statusMessage":"Not Found"}}' : NEWS_SAVED);
+    return;
+  }
   const base = BASES.find((b) => url.pathname.startsWith(b));
   if (!base) { res.writeHead(404, { Date: date }); res.end(); return; }
   let rel = normalize(decodeURIComponent(url.pathname.slice(base.length)) || 'index.html');
@@ -71,7 +86,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const chrome = await launchChrome();
 
 /** A fresh page whose clock reads `at` on load, with optional saved prefs and time zone. */
-async function open(at, { prefs, timezone, width = 1440, height = 900, mobile = false, serverSkewMs = 0, before } = {}) {
+async function open(at, { prefs, timezone, width = 1440, height = 900, mobile = false, serverSkewMs = 0, before, url } = {}) {
   const page = await chrome.newPage();
   await page.viewport(width, height, mobile);
   if (timezone) await page.emulate({ timezone, locale: 'en-US' });
@@ -80,7 +95,7 @@ async function open(at, { prefs, timezone, width = 1440, height = 900, mobile = 
   await page.startClockAt(Date.parse(at));
   if (prefs) await page.beforeLoad(`localStorage.setItem('d4-tracker:v1:prefs', ${JSON.stringify(JSON.stringify(prefs))});`);
   if (before) await page.beforeLoad(before);
-  await page.goto(appUrl);
+  await page.goto(url ?? appUrl);
   await page.waitFor("document.querySelector('.event .big') && document.querySelector('.event .big').textContent !== '--:--'");
   return page;
 }
@@ -531,6 +546,10 @@ try {
     await page.eval("document.getElementById('settings-open').click()");
     const data = await page.eval("document.getElementById('settings').textContent");
     check('settings explain the clock check needs a server', data.includes('needs the page to come from a web server'), data.slice(-300));
+    await page.eval("document.getElementById('settings').close(); document.querySelector('#news summary').click()");
+    await page.waitFor(`${text('#news .news-note')}.includes('radmagelabs.com/d4/')`).catch(() => {});
+    check('opened from disk, Latest news points to radmagelabs.com/d4/ and Blizzard News', (await page.eval(text('#news .news-note'))) === 'Headlines load at radmagelabs.com/d4/. Here, read the news on Blizzard News.', await page.eval(text('#news .news-note')));
+    check('and still makes no network requests', page.requests.filter((u) => /^https?:/.test(u)).length === 0, JSON.stringify(page.requests.filter((u) => /^https?:/.test(u))));
   }
 
   // 7. Phone width: no sideways scrolling; the scalable overview and regional atlas stay usable.
@@ -932,6 +951,92 @@ try {
     check('compact view keeps to the countdowns: the radar is hidden there', await compact.eval("getComputedStyle(document.getElementById('map-panel')).display === 'none' || document.getElementById('lower').offsetParent === null"));
     check('the radar makes no errors in compact view', compact.problems.length === 0, JSON.stringify(compact.problems));
     await compact.close();
+  }
+  // 8. Latest news: closed and silent until opened; then Blizzard's headlines through this site's
+  //    own news.json (under /d4/, as radmagelabs.com passes it through), kept 15 minutes, remembered
+  //    open or closed, and a plain link to Blizzard News wherever they cannot load. On their own
+  //    address (localhost): pages left open above would otherwise follow the "open" setting too.
+  {
+    const host = origin.replace('127.0.0.1', 'localhost');
+    const NEWS_KEY = 'd4-tracker:v1:news';
+    const fresh = `localStorage.removeItem('${NEWS_KEY}');`;
+    const items = "document.querySelectorAll('#news .news-list li').length";
+    const note = text('#news .news-note');
+    const shown = "getComputedStyle(document.getElementById('news')).display !== 'none'";
+    newsMode = 'ok';
+    newsRequests = 0;
+    const a = await open('2026-10-25T15:00:00Z', { timezone: 'UTC', url: `${host}/d4/`, prefs: {}, before: fresh });
+    await sleep(300);
+    check('Latest news starts closed and asks for nothing', (await a.eval("document.getElementById('news').open")) === false && newsRequests === 0
+      && (await a.eval(note)) === 'Opening this loads the newest Diablo IV headlines from Blizzard News.', `${newsRequests} ${await a.eval(note)}`);
+    check('it is the bar above the cards', await a.eval("document.getElementById('news').nextElementSibling === document.getElementById('cards') && document.querySelector('#news summary').textContent === 'Latest newsfrom Blizzard News'"));
+    await a.eval("document.querySelector('#news summary').click()");
+    await a.waitFor(`${items} === 8`).catch(() => {});
+    check('opened, it lists the eight newest headlines in two columns', (await a.eval(items)) === 8 && (await a.eval("document.querySelectorAll('#news .news-list').length")) === 2, String(await a.eval(items)));
+    const first = await a.eval("document.querySelector('#news .news-list li').textContent");
+    check('newest first, with its category and date', first === 'The 3.3.0 PTR: What You Need to KnowNewsOct 22', first);
+    const links = await a.eval("[...document.querySelectorAll('#news a')].map(x => [x.href, x.target, x.rel].join(' '))");
+    check('every news link goes to news.blizzard.com, in a new tab', links.length === 9 && links.every((l) => /^https:\/\/news\.blizzard\.com\/en-us\/\S+ _blank noopener noreferrer$/.test(l)), JSON.stringify(links));
+    check('the note says where they came from and when', (await a.eval(note)) === 'Headlines from Blizzard News, checked at 3:00 PM. Open Blizzard News.', await a.eval(note));
+    const asked = a.requests.filter((u) => u.includes('news.json'));
+    check("one request, to this site's own news.json", newsRequests === 1 && asked.length === 1 && asked[0] === `${host}/d4/news.json`, JSON.stringify(asked));
+    check('opening it is remembered', JSON.parse(await a.eval("localStorage.getItem('d4-tracker:v1:prefs')")).newsOpen === true);
+    check('Latest news makes no errors', a.problems.length === 0, JSON.stringify(a.problems));
+    if (shots) await a.screenshot(join(shots, 'news.png'));
+    await a.viewport(390, 844, true);
+    await sleep(200);
+    check('news fits a phone', (await a.eval("[...document.querySelectorAll('#news *')].filter(n => n.getBoundingClientRect().right > innerWidth + 1).map(n => n.tagName)")).length === 0
+      && (await a.eval('document.documentElement.scrollWidth - innerWidth')) <= 0);
+    if (shots) await a.screenshot(join(shots, 'news-phone.png'));
+    await a.close();
+
+    // Five minutes later: open again from last time, from the kept copy, without asking.
+    const b = await open('2026-10-25T15:05:00Z', { timezone: 'UTC', url: `${host}/d4/` });
+    await b.waitFor(`${items} === 8`).catch(() => {});
+    await sleep(300);
+    check('left open, it opens again from the kept copy without asking', (await b.eval("document.getElementById('news').open")) && (await b.eval(items)) === 8 && newsRequests === 1, `${newsRequests}`);
+    await b.eval("document.querySelector('#news summary').click()");
+    await b.waitFor("JSON.parse(localStorage.getItem('d4-tracker:v1:prefs')).newsOpen === false").catch(() => {});
+    check('closing it is remembered', JSON.parse(await b.eval("localStorage.getItem('d4-tracker:v1:prefs')")).newsOpen === false);
+    await b.close();
+
+    // Half an hour on, Blizzard does not answer: the kept headlines stay, saying when they are from.
+    newsMode = 'down';
+    const c = await open('2026-10-25T15:30:00Z', { timezone: 'UTC', url: `${host}/d4/`, prefs: { newsOpen: true } });
+    await c.waitFor(`${note}.startsWith('Blizzard News could not')`).catch(() => {});
+    check('when it cannot reach Blizzard, the kept headlines stay with when they were checked', (await c.eval(note)) === 'Blizzard News could not be reached just now; these headlines were checked at 3:00 PM. Open Blizzard News.'
+      && (await c.eval(items)) === 8 && newsRequests === 2, `${newsRequests} ${await c.eval(note)}`);
+    await c.close();
+    const d = await open('2026-10-25T15:30:00Z', { timezone: 'UTC', url: `${host}/d4/`, prefs: { newsOpen: true }, before: fresh });
+    await d.waitFor(`${note}.startsWith('News could not')`).catch(() => {});
+    check('with nothing kept, it says so and the timers carry on', (await d.eval(note)) === 'News could not load right now. The timers are not affected. Read the news on Blizzard News.'
+      && (await d.eval(items)) === 0 && /^\d+:\d\d(:\d\d)?$/.test(await d.eval(card('worldBoss', '.big'))), `${await d.eval(note)} ${await d.eval(card('worldBoss', '.big'))}`);
+    await d.close();
+    newsMode = 'gone';
+    const e = await open('2026-10-25T15:30:00Z', { timezone: 'UTC', url: `${host}/d4/`, prefs: { newsOpen: true }, before: fresh });
+    await e.waitFor(`${note}.startsWith('News could not')`).catch(() => {});
+    check('Blizzard\'s own "not found" is a failure here, not a missing pass-through', (await e.eval(note)).startsWith('News could not load right now.'), await e.eval(note));
+    await e.close();
+
+    // GitHub Pages (/d4-tracker/) does not pass the list through: a link to radmagelabs.com/d4/ and Blizzard News.
+    newsMode = 'ok';
+    const asked0 = newsRequests;
+    const f = await open('2026-10-25T15:30:00Z', { timezone: 'UTC', url: `${host}/d4-tracker/`, prefs: { newsOpen: true }, before: fresh });
+    await f.waitFor(`${note}.startsWith('Headlines load at')`).catch(() => {});
+    check('on GitHub Pages it points to radmagelabs.com/d4/ and Blizzard News', (await f.eval(note)) === 'Headlines load at radmagelabs.com/d4/. Here, read the news on Blizzard News.'
+      && (await f.eval(items)) === 0, await f.eval(note));
+    check('with just those two links', JSON.stringify(await f.eval("[...document.querySelectorAll('#news a')].map(x => x.href)")) === JSON.stringify(['https://radmagelabs.com/d4/', 'https://news.blizzard.com/en-us/diablo4']));
+    check('and its one miss is that news.json', f.problems.length === 1 && /^HTTP 404 .*\/d4-tracker\/news\.json$/.test(f.problems[0]) && newsRequests === asked0, JSON.stringify(f.problems));
+    await f.close();
+
+    // Compact view and the pop-out keep to the countdowns: no bar, and nothing asked.
+    for (const [label, path, prefs] of [['compact view', '/d4/', { compact: true, newsOpen: true }], ['the pop-out', '/d4/#compact', { newsOpen: true }]]) {
+      const g = await open('2026-10-25T15:30:00Z', { timezone: 'UTC', url: host + path, prefs, before: fresh });
+      await sleep(400);
+      check(`${label} hides Latest news and asks for nothing`, !(await g.eval(shown)) && newsRequests === asked0, `${newsRequests}`);
+      await g.eval('localStorage.clear()');
+      await g.close();
+    }
   }
 } finally {
   await chrome.close();

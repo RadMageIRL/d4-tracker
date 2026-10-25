@@ -3,6 +3,7 @@ import { EVENTS, LOCATIONS, REGISTERED_RULES, ROTATIONS, SEASONS, SHARED_SIGHTIN
 import {
   checkEvents, checkLocations, checkRotations, checkSeasons, type EventsFile, type LocationsFile, type RotationsFile, type RuleRecord,
 } from '../src/data/schema';
+import { NEWS_PATH } from '../src/engine/news';
 
 const clone = <T>(x: T): T => structuredClone(x);
 
@@ -235,6 +236,8 @@ describe('independence', () => {
 
   it('requests nothing from another origin in code: every fetch goes to the page itself', () => {
     const fetches = Object.entries(files).flatMap(([path, text]) => [...text.matchAll(/fetch\(([^,)]*)/g)].map((m) => `${path}: ${m[1]}`));
-    expect(fetches).toEqual(['../src/main.ts: url']);
+    expect(fetches).toEqual(['../src/main.ts: NEWS_PATH', '../src/main.ts: url']);
+    // Latest news asks the page's own address (radmagelabs.com passes it through to Blizzard).
+    expect(NEWS_PATH).toMatch(/^[a-z]+\.json$/);
   });
 });
