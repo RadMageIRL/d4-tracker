@@ -49,10 +49,17 @@ describe('sanitize', () => {
   });
 
   it('keeps only offered reminder lead times, largest first, without duplicates', () => {
-    const p = sanitize({ reminders: { worldBoss: [5, 15, 7, 5, '10'], legion: [5, 10], helltide: [0, 1] } });
+    const p = sanitize({ reminders: { worldBoss: [5, 15, 7, 5, '10'], legion: [5, 10, 20], helltide: [0, 1, 15] } });
     expect(p.reminders.worldBoss).toEqual([15, 5]);
-    expect(p.reminders.legion).toEqual([5]);
-    expect(p.reminders.helltide).toEqual([0]);
+    expect(p.reminders.legion).toEqual([10, 5]);
+    expect(p.reminders.helltide).toEqual([15, 0]);
+  });
+
+  it('keeps the reminder sound off and nothing marked done by default; a done mark must be a start time', () => {
+    expect(defaultPrefs().reminderSound).toBe(false);
+    expect(defaultPrefs().done).toEqual({ worldBoss: null, legion: null });
+    expect(sanitize({ reminderSound: true, done: { worldBoss: 1761354000000, legion: 'x' } })).toMatchObject({
+      reminderSound: true, done: { worldBoss: 1761354000000, legion: null } });
   });
 
   it('treats garbage as defaults', () => {
@@ -73,7 +80,22 @@ describe('sanitize', () => {
   it('shows every event in Coming up by default, and keeps a saved pick only when it is offered', () => {
     expect(defaultPrefs().comingUp).toBe('all');
     expect(sanitize({ comingUp: 'worldBoss' }).comingUp).toBe('worldBoss');
+    expect(sanitize({ comingUp: 'starred' }).comingUp).toBe('starred');
     expect(sanitize({ comingUp: 'season' }).comingUp).toBe('all');
+  });
+
+  it('looks 6 hours ahead in Coming up by default and 24 for the World Boss, keeping a saved length only when offered', () => {
+    expect(defaultPrefs().comingUpHours).toEqual({ all: 6, starred: 6, helltide: 6, worldBoss: 24, legion: 6 });
+    const p = sanitize({ comingUpHours: { all: 12, worldBoss: 72, legion: 72, helltide: 7 } });
+    expect(p.comingUpHours).toEqual({ all: 12, starred: 6, helltide: 6, worldBoss: 72, legion: 6 });
+  });
+
+  it('stars nothing by default, keeps each saved star, and keeps stars apart from reminders', () => {
+    expect(defaultPrefs().starred).toEqual({ helltide: false, worldBoss: false, legion: false });
+    const p = sanitize({ starred: { worldBoss: true, legion: 'yes', season: true }, reminders: { worldBoss: [10] } });
+    expect(p.starred).toEqual({ helltide: false, worldBoss: true, legion: false });
+    expect(sanitize({ starred: { legion: true } }).reminders).toEqual(defaultPrefs().reminders);
+    expect(sanitize({ reminders: { legion: [5] } }).starred).toEqual(defaultPrefs().starred);
   });
 });
 

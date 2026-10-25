@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.7.3 (2026-10-25)
+
+- How far ahead. A small dropdown beside Coming up's heading replaces "next 6 hours": 6, 12, 18 or
+  24 hours, and for the World Boss 6 to 72 hours (24 by default, about seven spawns; 72 is about
+  21). Each pick remembers its own.
+
+- Add to calendar. A small pill beside Coming up's heading saves what the list shows (All, Starred
+  or one event) as a calendar file (.ics) for Google Calendar, Outlook or Apple Calendar. Each start
+  carries its prediction, labeled Predicted, and a reminder at your own reminder time for that event
+  (10 minutes when none is set). A Helltide is its 55-minute window; a spawn, a 15-minute block.
+  Importing again updates those starts instead of adding copies.
+- Stars. A small ☆ beside each card's name stars that event; Coming up's ★ pick lists only the
+  starred events (a day ahead when the World Boss is the only one), and says how to star when none
+  is. Stars are kept in this browser, apart from reminders, and a pop-out window keeps in step
+  with the main one (so do done marks and the other settings).
+
+- Mark done. The World Boss and Legion cards can mark their last start done, for your own tracking:
+  the card says "done, marked by you" (the tracker cannot see the game), Coming up dims that event,
+  and the mark clears by itself when the next one starts. Undo clears it sooner.
+- Reminders. 15, 10 or 5 minutes before for the World Boss, the Legion and the Helltide (and when a
+  Helltide begins); before, the Legion offered 5 minutes and the Helltide only its start. An
+  optional sound plays with each one, a short chime made in the page (nothing is fetched). The
+  settings say reminders are not guaranteed and need the page open; system notifications stay opt-in.
+
 ## v0.7.2 (2026-10-25)
 
 - Coming up by event. Pick All, Helltide, World Boss or Legion above the list. One event picked

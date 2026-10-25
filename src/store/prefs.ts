@@ -18,18 +18,28 @@ export type ConfidenceId = 'confirmed' | 'inferred' | 'unknown';
 export type RealmChoice = 'any' | 'seasonal' | 'eternal';
 export type RadarId = 'helltide' | 'worldBoss' | 'legion';
 export const RADAR_IDS: RadarId[] = ['helltide', 'worldBoss', 'legion'];
-/** What Coming up lists: every shown event, or one event's starts. */
-export type ComingUpChoice = 'all' | 'helltide' | 'worldBoss' | 'legion';
-export const COMING_UP_CHOICES: ComingUpChoice[] = ['all', 'helltide', 'worldBoss', 'legion'];
+/** What Coming up lists: every shown event, the starred ones, or one event's starts. */
+export type ComingUpChoice = 'all' | 'starred' | 'helltide' | 'worldBoss' | 'legion';
+export const COMING_UP_CHOICES: ComingUpChoice[] = ['all', 'starred', 'helltide', 'worldBoss', 'legion'];
+/** How far ahead Coming up can look, in hours, for each pick. The World Boss spawns every 3.5 hours,
+ *  so its list can look days ahead and stay short (72 hours is about 21 spawns). */
+const HOURS = [6, 12, 18, 24] as const;
+export const COMING_UP_HOURS: Record<ComingUpChoice, readonly number[]> = {
+  all: HOURS, starred: HOURS, helltide: HOURS, worldBoss: [6, 12, 24, 48, 72], legion: HOURS,
+};
 /** How many minutes before a spawn the event radar shows it. */
 export const RADAR_LEADS = { worldBoss: [15, 30, 60], legion: [5, 10, 15] } as const;
 
 /** The lead times offered for each event, in minutes (0 = when it starts). */
 export const REMINDER_CHOICES = {
   worldBoss: [15, 10, 5],
-  legion: [5],
-  helltide: [0],
+  legion: [15, 10, 5],
+  helltide: [15, 10, 5, 0],
 } as const;
+
+/** The events a player can mark done: spawns with a single start and no known window. */
+export type DoneKind = 'worldBoss' | 'legion';
+export const DONE_KINDS: DoneKind[] = ['worldBoss', 'legion'];
 
 export interface Prefs {
   cards: Record<CardId, boolean>;
@@ -42,6 +52,10 @@ export interface Prefs {
   reminders: { worldBoss: number[]; legion: number[]; helltide: number[] };
   /** The player asked for system notifications (the browser's permission is separate). */
   systemNotifications: boolean;
+  /** A short chime with each reminder. */
+  reminderSound: boolean;
+  /** The start the player marked done, per event; it applies until the next start. */
+  done: Record<DoneKind, number | null>;
   /** What the browser tab title counts down to. */
   title: TitleChoice;
   /** Which confidence levels the atlas shows. */
@@ -53,6 +67,10 @@ export interface Prefs {
   /** Minutes before a spawn its radar marker appears. */
   radarLead: { worldBoss: number; legion: number };
   comingUp: ComingUpChoice;
+  /** How far ahead Coming up looks, kept for each pick. */
+  comingUpHours: Record<ComingUpChoice, number>;
+  /** Events starred on their cards, for Coming up's Starred list. Separate from reminders. */
+  starred: Record<RadarId, boolean>;
 }
 
 export const CARD_IDS: CardId[] = ['helltide', 'worldBoss', 'legion', 'map', 'season', 'sightings'];
@@ -69,12 +87,17 @@ export function defaultPrefs(): Prefs {
     zone: 'local',
     reminders: { worldBoss: [], legion: [], helltide: [] },
     systemNotifications: false,
+    reminderSound: false,
+    done: { worldBoss: null, legion: null },
     title: 'next',
     confidences: { confirmed: true, inferred: true, unknown: true },
     realm: 'any',
     radar: { helltide: true, worldBoss: true, legion: true },
     radarLead: { worldBoss: 30, legion: 10 },
     comingUp: 'all',
+    // A day of World Bosses is about seven spawns.
+    comingUpHours: { all: 6, starred: 6, helltide: 6, worldBoss: 24, legion: 6 },
+    starred: { helltide: false, worldBoss: false, legion: false },
   };
 }
 
@@ -107,6 +130,10 @@ export function sanitize(raw: unknown): Prefs {
   const radar = isRecord(raw.radar) ? raw.radar : {};
   const lead = isRecord(raw.radarLead) ? raw.radarLead : {};
   const pickLead = (v: unknown, allowed: readonly number[], fallback: number) => (typeof v === 'number' && allowed.includes(v) ? v : fallback);
+  const done = isRecord(raw.done) ? raw.done : {};
+  const starred = isRecord(raw.starred) ? raw.starred : {};
+  const hours = isRecord(raw.comingUpHours) ? raw.comingUpHours : {};
+  const pickStart = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : null);
   return {
     cards: Object.fromEntries(CARD_IDS.map((id) => [id, pickBool(cards[id], d.cards[id])])) as Prefs['cards'],
     layers: Object.fromEntries(LAYER_IDS.map((id) => [id, pickBool(layers[id], d.layers[id])])) as Prefs['layers'],
@@ -120,6 +147,8 @@ export function sanitize(raw: unknown): Prefs {
       helltide: pickLeads(rem.helltide, REMINDER_CHOICES.helltide),
     },
     systemNotifications: pickBool(raw.systemNotifications, d.systemNotifications),
+    reminderSound: pickBool(raw.reminderSound, d.reminderSound),
+    done: { worldBoss: pickStart(done.worldBoss), legion: pickStart(done.legion) },
     title: pickOne(raw.title, TITLE_CHOICES, d.title),
     confidences: Object.fromEntries(CONFIDENCE_IDS.map((id) => [id, pickBool(conf[id], d.confidences[id])])) as Prefs['confidences'],
     realm: pickOne(raw.realm, ['any', 'seasonal', 'eternal'] as const, d.realm),
@@ -129,6 +158,8 @@ export function sanitize(raw: unknown): Prefs {
       legion: pickLead(lead.legion, RADAR_LEADS.legion, d.radarLead.legion),
     },
     comingUp: pickOne(raw.comingUp, COMING_UP_CHOICES, d.comingUp),
+    comingUpHours: Object.fromEntries(COMING_UP_CHOICES.map((c) => [c, pickLead(hours[c], COMING_UP_HOURS[c], d.comingUpHours[c])])) as Prefs['comingUpHours'],
+    starred: Object.fromEntries(RADAR_IDS.map((id) => [id, pickBool(starred[id], d.starred[id])])) as Prefs['starred'],
   };
 }
 

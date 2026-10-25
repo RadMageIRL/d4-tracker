@@ -271,6 +271,90 @@ try {
     await page.eval(`[...document.querySelectorAll('#settings label.chip')].find(l => l.textContent === 'Legion').querySelector('input').click()`);
     check('hiding Legion hides its card', await page.eval(`document.querySelector('.event[data-kind="legion"]').hidden`));
   }
+  // 5b. The reminder choices, and the player's own "done" mark. The next-event strip is off.
+  {
+    const page = await open('2026-10-24T15:00:00Z', { timezone: 'UTC', prefs: {} });
+    check('no next-event strip above the cards', await page.eval("!document.querySelector('.next-strip')"));
+    await page.eval("document.getElementById('settings-open').click()");
+    const leads = await page.eval(`[...document.querySelectorAll('#settings fieldset')].find(f => f.querySelector('legend').textContent === 'Reminders').textContent`);
+    check('reminders offer 15, 10 and 5 minutes before the World Boss, Legion and Helltide, and a sound',
+      (leads.match(/15 min before10 min before5 min before/g) ?? []).length === 3 && leads.includes('When it begins') && leads.includes('Play a sound with each reminder')
+      && leads.includes('not guaranteed'), leads.slice(0, 300));
+  }
+  {
+    const page = await open('2026-10-24T15:25:00Z', { timezone: 'UTC', prefs: {} });
+    const btn = `document.querySelector('.event[data-kind="legion"] .done-toggle')`;
+    check('the Legion card offers "Mark done" on its last start', (await page.eval(`${btn}.textContent`)) === 'Mark done');
+    await page.eval(`${btn}.click()`);
+    const last = await page.eval(`[...document.querySelectorAll('.event[data-kind="legion"] .facts dt')].find(d => d.textContent === 'Last').nextElementSibling.textContent`);
+    check('marked: the last start says it was marked by you, with Undo', /^3:20 PM \(5 min ago\) · done, marked by youUndo$/.test(last), last);
+    const rows = () => page.eval(`[...document.querySelectorAll('#timeline-panel li')].map(li => li.dataset.kind + (li.classList.contains('done') ? '*' : '')).join()`);
+    const dimmed = await rows();
+    check('Coming up dims the Legion rows, and only those', dimmed.split(',').every((r) => r.startsWith('legion') === r.endsWith('*')) && dimmed.includes('legion*'), dimmed);
+    check('the mark is the 15:20 start, kept in the settings', (await page.eval(`JSON.parse(localStorage.getItem('d4-tracker:v1:prefs')).done.legion`)) === Date.parse('2026-10-24T15:20:00Z'));
+    check('the World Boss is not marked', (await page.eval(`document.querySelector('.event[data-kind="worldBoss"] .done-toggle').textContent`)) === 'Mark done');
+    await page.eval(`(() => { const prev = Date.now; Date.now = () => prev() + ${20 * 60000 + 1000}; })()`);
+    await page.waitFor(`${btn}.textContent === 'Mark done'`, 6000).catch(() => {});
+    check('the next Legion start clears the mark by itself', (await page.eval(`${btn}.textContent`)) === 'Mark done' && !(await rows()).includes('*'), await rows());
+  }
+  // 5c. Stars, Coming up's Starred list, another window kept in step, and Add to calendar.
+  {
+    // Calendar downloads are caught instead of saved: the anchor's file name and the file's text.
+    const catchFiles = `(() => { window.__files = []; const make = URL.createObjectURL; URL.createObjectURL = (b) => { window.__blob = b; return make(b); };
+      const click = HTMLAnchorElement.prototype.click; HTMLAnchorElement.prototype.click = function () {
+        if (this.download) { window.__files.push({ name: this.download, blob: window.__blob }); return; } return click.call(this); }; })();`;
+    const lastFile = "(() => { const f = window.__files.at(-1); return f ? f.blob.text().then(text => ({ name: f.name, text })) : null; })()";
+    const a = await open('2026-10-24T15:00:00Z', { timezone: 'UTC', prefs: {}, before: catchFiles });
+    const star = (kind) => `document.querySelector('.event[data-kind="${kind}"] .star-btn')`;
+    const pick = (p) => a.eval(`document.querySelector('.tl-picks [data-pick="${p}"]').click()`);
+    const kinds = (page) => page.eval(`[...new Set([...document.querySelectorAll('#timeline-panel li')].map(li => li.dataset.kind))].join()`);
+    check('each card has a star, off, labeled and not pressed', (await a.eval(`[...document.querySelectorAll('.star-btn')].map(b => b.textContent + b.getAttribute('aria-pressed') + b.getAttribute('aria-label')).join('|')`))
+      === '☆falseStar Helltide|☆falseStar World Boss|☆falseStar Legion');
+    check('the stars add no height to the cards\' heads', (await a.eval(`[...document.querySelectorAll('.event-head')].every(e => e.getBoundingClientRect().height <= e.querySelector('.pill').getBoundingClientRect().height + 1)`)));
+    await pick('starred');
+    check('Starred with nothing starred says how to star', (await a.eval(text('#timeline-panel .help'))).startsWith('Nothing starred yet.')
+      && (await a.eval("document.querySelectorAll('#timeline-panel li').length")) === 0 && (await a.eval("document.querySelector('.tl-calendar').hidden")));
+    // A second window, as the pop-out opens it: it takes the saved settings and follows changes.
+    const b = await open('2026-10-24T15:00:00Z', { timezone: 'UTC' });
+    await b.goto('about:blank');
+    await b.goto(`${appUrl}#compact`);
+    await b.waitFor("document.querySelector('.event .big') && document.querySelector('.event .big').textContent !== '--:--'");
+    await a.eval(`${star('worldBoss')}.click()`);
+    check('starring presses the star', (await a.eval(`${star('worldBoss')}.textContent + ${star('worldBoss')}.getAttribute('aria-pressed')`)) === '★true');
+    check('Starred lists the World Boss alone, six hours ahead by default', (await kinds(a)) === 'worldBoss' && (await a.eval("document.querySelector('.tl-hours').value")) === '6');
+    await b.waitFor(`${star('worldBoss')}.getAttribute('aria-pressed') === 'true'`, 5000).catch(() => {});
+    check('the pop-out window follows the star', (await b.eval(`${star('worldBoss')}.getAttribute('aria-pressed')`)) === 'true');
+    await b.eval(`${star('legion')}.click()`);
+    await a.waitFor(`${star('legion')}.getAttribute('aria-pressed') === 'true'`, 5000).catch(() => {});
+    check('and a star set in the pop-out shows in the main window', (await a.eval(`${star('legion')}.getAttribute('aria-pressed')`)) === 'true');
+    check('Starred then lists the World Boss and Legion', (await kinds(a)) === 'legion,worldBoss', await kinds(a));
+    check('stars leave reminders alone', JSON.stringify(await a.eval(`JSON.parse(localStorage.getItem('d4-tracker:v1:prefs')).reminders`)) === '{"worldBoss":[],"legion":[],"helltide":[]}');
+    await a.eval("document.querySelector('.tl-calendar').click()");
+    const starredFile = await a.eval(lastFile);
+    check('Add to calendar in Starred saves the starred starts', starredFile?.name === 'd4-starred.ics' && !/Helltide/.test(starredFile.text)
+      && /SUMMARY:Diablo IV: World Boss/.test(starredFile.text) && /SUMMARY:Diablo IV: Legion/.test(starredFile.text), starredFile?.name);
+    // The second window seeds no settings of its own, so a reload there reads only what was saved.
+    await b.reload();
+    await b.waitFor("document.querySelector('.event .big') && document.querySelector('.event .big').textContent !== '--:--'");
+    check('stars and the Starred pick survive a reload', (await b.eval(`[...document.querySelectorAll('.star-btn')].map(b => b.getAttribute('aria-pressed')).join()`)) === 'false,true,true'
+      && (await b.eval(`document.querySelector('.tl-picks [data-pick="starred"]').getAttribute('aria-pressed')`)) === 'true');
+    await pick('worldBoss');
+    await a.eval("document.querySelector('.tl-calendar').click()");
+    const wb = await a.eval(lastFile);
+    const events = (wb?.text.match(/BEGIN:VEVENT/g) ?? []).length;
+    check('Add to calendar with World Boss picked: its 7 spawns, each a 15-minute block with its predicted boss and a 10-minute reminder',
+      wb?.name === 'd4-world-boss.ics' && events === 7 && (wb.text.match(/TRIGGER:-PT10M/g) ?? []).length === 7
+      && /DTSTART:20261024T180000Z\r\nDTEND:20261024T181500Z/.test(wb.text) && /DESCRIPTION:Predicted: \S/.test(wb.text), `${wb?.name} ${events}`);
+    check('and says the file was saved', /d4-world-boss\.ics has 7 events/.test(await a.eval(`[...document.querySelectorAll('.toast')].map(t => t.textContent).join('|')`)));
+    await pick('helltide');
+    await a.eval("document.querySelector('.tl-calendar').click()");
+    const ht = await a.eval(lastFile);
+    check('a Helltide is its 55-minute window', ht?.name === 'd4-helltide.ics' && /DTSTART:20261024T160000Z\r\nDTEND:20261024T165500Z/.test(ht.text), ht?.name);
+    await a.eval(`${star('worldBoss')}.click()`);
+    await a.eval(`${star('legion')}.click()`);
+    await pick('starred');
+    check('unstarring everything brings back the empty Starred list', (await a.eval(text('#timeline-panel .help'))).startsWith('Nothing starred yet.'));
+  }
   {
     const page = await open('2026-10-24T15:00:00Z', { prefs: { theme: 'light' } });
     check('light theme applied', (await page.eval("document.documentElement.dataset.theme")) === 'light');
@@ -776,18 +860,30 @@ try {
     const phoneNotes = await xPhone.eval("document.querySelectorAll('#timeline-panel .tl-note').length");
     check('on a 390 px phone no expansion note is split across lines', phoneNotes > 0 && (await xPhone.eval(split)).length === 0, `${phoneNotes} notes; split ${JSON.stringify(await xPhone.eval(split))}`);
     await xPhone.close();
-    const span = await lgX.eval(`(() => { const li = [...document.querySelectorAll('#timeline-panel li')]; return { title: document.querySelector('#timeline-title .note').textContent,
-      rows: li.length, lastIn: Number(li.at(-1).dataset.start) - Date.now() }; })()`);
-    check('Coming up covers the next 6 hours', span.title === 'next 6 hours' && span.rows > 10 && span.lastIn > 5 * 3600000 && span.lastIn <= 6 * 3600000 + 1000, JSON.stringify(span));
+    const spanOf = () => lgX.eval(`(() => { const li = [...document.querySelectorAll('#timeline-panel li')]; const s = document.querySelector('.tl-hours');
+      return { hours: s.value, offered: [...s.options].map(o => o.textContent).join('/'), rows: li.length, lastIn: Number(li.at(-1).dataset.start) - Date.now() }; })()`);
+    const span = await spanOf();
+    check('Coming up covers the next 6 hours by default, with 6 to 24 offered', span.hours === '6' && span.offered === '6 hours/12 hours/18 hours/24 hours'
+      && span.rows > 10 && span.lastIn > 5 * 3600000 && span.lastIn <= 6 * 3600000 + 1000, JSON.stringify(span));
+    const setHours = (n) => lgX.eval(`(() => { const s = document.querySelector('.tl-hours'); s.value = '${n}'; s.dispatchEvent(new Event('change')); })()`);
+    await setHours(12);
+    const twelve = await spanOf();
+    check('choosing 12 hours lists twelve hours of starts', twelve.hours === '12' && twelve.lastIn > 11 * 3600000 && twelve.lastIn <= 12 * 3600000 + 1000, JSON.stringify(twelve));
+    await setHours(6);
     // One event picked: only its starts, each with its prediction on a line of its own; the World Boss looks a day ahead.
     const picks = () => lgX.eval(`[...document.querySelectorAll('.tl-picks button')].map(b => b.textContent + (b.getAttribute('aria-pressed') === 'true' ? '*' : '')).join(',')`);
     const pickRows = () => lgX.eval(`[...document.querySelectorAll('#timeline-panel li')].map(li => li.dataset.kind + ':' + (li.querySelector('.tl-detail')?.textContent ?? ''))`);
-    check('Coming up offers All, Helltide, World Boss and Legion, with All picked', (await picks()) === 'All*,Helltide,World Boss,Legion', await picks());
+    check('Coming up offers All, Starred (a star), Helltide, World Boss and Legion, with All picked', (await picks()) === 'All*,★,Helltide,World Boss,Legion', await picks());
     await lgX.eval(`document.querySelector('.tl-picks [data-pick="worldBoss"]').click()`);
     const wbRows = await pickRows();
-    const wbSpan = await lgX.eval(text('#timeline-title .note'));
-    check('World Boss picked: its 7 spawns in the next 24 hours, each with its predicted boss', wbSpan === 'next 24 hours' && wbRows.length === 7
-      && wbRows.every((r) => /^worldBoss:\S/.test(r)), `${wbSpan} ${JSON.stringify(wbRows)}`);
+    const wbSpan = await spanOf();
+    check('World Boss picked: its 7 spawns in the next 24 hours by default, each with its predicted boss', wbSpan.hours === '24' && wbRows.length === 7
+      && wbRows.every((r) => /^worldBoss:\S/.test(r)), `${JSON.stringify(wbSpan)} ${JSON.stringify(wbRows)}`);
+    check('the World Boss offers up to 72 hours', wbSpan.offered === '6 hours/12 hours/24 hours/48 hours/72 hours', wbSpan.offered);
+    await setHours(72);
+    check('72 hours of World Bosses is 21 spawns, and each pick keeps its own choice', (await pickRows()).length === 21
+      && JSON.stringify(await lgX.eval(`JSON.parse(localStorage.getItem('d4-tracker:v1:prefs')).comingUpHours`)) === '{"all":6,"starred":6,"helltide":6,"worldBoss":72,"legion":6}');
+    await setHours(24);
     await lgX.eval(`document.querySelector('.tl-picks [data-pick="helltide"]').click()`);
     const htRows = await pickRows();
     check('Helltide picked: each hour with its regions', htRows.length === 6 && htRows[0] === 'helltide:Scosglen' && htRows[1] === 'helltide:Dry Steppes and Nahantu', JSON.stringify(htRows));

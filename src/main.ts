@@ -12,6 +12,7 @@ import { chestSpots, chestState, type SharedSpot } from './engine/chests';
 import { detectResume, estimateClock, SAMPLE_GAP_MS, type ClockEstimate, type ClockSample } from './engine/clock';
 import { eventStatus, hasExtraSpawn, isInstant, type EventKind, type EventStatus } from './engine/events';
 import { calendarDate, clockTime, spanWords, zoneName } from './engine/format';
+import { icsCalendar, type CalendarEvent } from './engine/ics';
 import { merge } from './engine/observations';
 import { radarLights, type RadarLight } from './engine/radar';
 import { activeOccurrence, lastStart, nextStart } from './engine/segments';
@@ -20,7 +21,7 @@ import { daysSince } from './engine/seasons';
 import { tabTitle } from './engine/title';
 import { anchorEvidence, anchorProgress } from './engine/verification';
 import { loadObservations, saveObservations } from './store/observations';
-import { loadPrefs, savePrefs, type Prefs } from './store/prefs';
+import { DONE_KINDS, loadPrefs, PREFIX, savePrefs, type ComingUpChoice, type DoneKind, type Prefs } from './store/prefs';
 import { EventCard, type OrderNote, type ViewContext } from './ui/cards';
 import { byId, h, setText } from './ui/dom';
 import { SanctuaryMap, type ChestView } from './ui/map';
@@ -28,7 +29,9 @@ import { showSystemNotification } from './ui/notify';
 import { SeasonPanel } from './ui/season';
 import { renderSettings } from './ui/settings';
 import { SightingsPanel, timingSummary, type FormPreset } from './ui/sightings';
-import { Timeline } from './ui/timeline';
+import { playChime, primeOnGesture } from './ui/sound';
+import { NextStrip } from './ui/strip';
+import { Timeline, type TimelineItem } from './ui/timeline';
 
 const scheduleSource: ScheduleSource = new LocalScheduleSource(eventDefinitions());
 const SHARED_IDS = new Set(SHARED_SIGHTINGS.map((o) => o.id));
@@ -97,12 +100,37 @@ for (const def of scheduleSource.definitions(nowMs())) {
     instant: isInstant(def, nowMs()),
     extra: !!def.extra,
     onLog: () => sightingsPanel.openForm(def.kind, logPreset(def.kind)),
+    ...(isDoneKind(def.kind) ? { onDone: (on: boolean) => markDone(def.kind as DoneKind, on) } : {}),
+    onStar: (on) => change((p) => { p.starred[def.kind] = on; }),
   });
   cards.set(def.kind, card);
   cardsEl.append(card.el);
 }
+/** The next-event strip above the cards. Off for now (it repeated the cards' countdowns); true brings it back. */
+const SHOW_NEXT_STRIP = false;
+const strip = SHOW_NEXT_STRIP ? new NextStrip() : null;
+if (strip) cardsEl.before(strip.el);
 
-const timeline = new Timeline((choice) => change((p) => { p.comingUp = choice; }));
+function isDoneKind(kind: EventKind): kind is DoneKind {
+  return (DONE_KINDS as EventKind[]).includes(kind);
+}
+
+/** The player's own "done" on the last start of a spawn. It holds until the next start. */
+function markDone(kind: DoneKind, on: boolean): void {
+  const last = statusesAt(nowMs()).find((s) => s.kind === kind)?.previous;
+  change((p) => { p.done[kind] = on && last ? last.startMs : null; });
+}
+
+/** Events whose last start the player marked done. */
+function doneKinds(statuses: EventStatus[]): Set<EventKind> {
+  return new Set(DONE_KINDS.filter((k) => {
+    const last = statuses.find((s) => s.kind === k)?.previous;
+    return !!last && prefs.done[k] === last.startMs;
+  }));
+}
+
+const timeline = new Timeline((choice) => change((p) => { p.comingUp = choice; }),
+  (pick, hours) => change((p) => { p.comingUpHours[pick] = hours; }), (items, pick) => addToCalendar(items, pick));
 byId('timeline-panel').append(timeline.el);
 const season = new SeasonPanel(SEASONS);
 byId('season-panel').append(season.el);
@@ -225,6 +253,41 @@ function expansionTimelineNote(kind: EventKind, startMs: number): string | null 
   return x ? `also ${x.region}` : null;
 }
 
+/**
+ * Coming up's "Add to calendar": the starts it lists, as an .ics file any calendar app imports, each
+ * with a reminder at the player's own lead for that event (10 minutes when none is set). What is
+ * predicted is written out and labeled; the UIDs are stable, so importing again updates a start.
+ */
+function addToCalendar(items: TimelineItem[], pick: ComingUpChoice): void {
+  if (!items.length) return;
+  const now = nowMs();
+  const events: CalendarEvent[] = items.map((i) => {
+    const predicted = pickedTimelineNote(i.kind, i.startMs, now);
+    const leads = prefs.reminders[i.kind];
+    const description = [
+      predicted ? `Predicted: ${predicted} (worked out from a repeating order, not confirmed; check the in-game map).` : '',
+      i.extra ? 'A second World Boss spawns in an expansion region at the same time.' : '',
+      'From Diablo IV Tracker: https://radmagelabs.com/d4/',
+    ].filter(Boolean).join('\n');
+    return {
+      uid: `${i.kind}-${i.startMs}@d4-tracker`,
+      startMs: i.startMs,
+      // A spawn has no known length: a 15-minute block marks it on the calendar.
+      endMs: i.endMs > i.startMs ? i.endMs : i.startMs + 15 * 60000,
+      summary: `Diablo IV: ${i.name}${i.extra ? ' (two)' : ''}`,
+      description,
+      alarmMinutes: leads.length ? Math.max(...leads) : 10,
+    };
+  });
+  const name = `d4-${{ all: 'coming-up', starred: 'starred', helltide: 'helltide', worldBoss: 'world-boss', legion: 'legion' }[pick]}.ics`;
+  const a = h('a', { href: URL.createObjectURL(new Blob([icsCalendar(events, now)], { type: 'text/calendar' })), download: name });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  toast(pick === 'all' || pick === 'starred' ? null : pick, 'Calendar file saved', `${name} has ${events.length} event${events.length === 1 ? '' : 's'}. Open it to add them to your calendar.`);
+}
+
 /** Coming up, one event picked: what is predicted for each start (the Helltide's regions, the World
  *  Boss's boss, the Legion's candidates as in Later predictions); the cards label these Predicted. */
 function pickedTimelineNote(kind: EventKind, startMs: number, now: number): string | null {
@@ -322,11 +385,23 @@ function applyPrefs(): void {
 function change(mutate: (p: Prefs) => void): void {
   mutate(prefs);
   savePrefs(prefs);
+  refresh();
+}
+
+function refresh(): void {
   applyPrefs();
   render();
   const dialog = byId<HTMLDialogElement>('settings');
   if (dialog.open) openSettings(false);
 }
+
+// Another window of this page (the pop-out, or a second tab) saved its settings: a star, a done
+// mark or a choice made there shows here too.
+window.addEventListener('storage', (e) => {
+  if (e.key !== `${PREFIX}prefs`) return;
+  prefs = loadPrefs();
+  refresh();
+});
 
 // Settings
 
@@ -384,7 +459,7 @@ function reminderRules(): ReminderRule[] {
   return out;
 }
 
-function toast(kind: EventKind, title: string, body: string): void {
+function toast(kind: EventKind | null, title: string, body: string): void {
   const close = h('button', { type: 'button', 'aria-label': 'Dismiss' }, '×');
   const el = h('div', { class: 'toast', 'data-kind': kind, role: 'status' }, h('div', {}, h('strong', {}, title), body), close);
   close.addEventListener('click', () => el.remove());
@@ -405,6 +480,7 @@ function checkReminders(now: number, statuses: EventStatus[]): void {
     const c = ctx();
     const body = `At ${clockTime(r.eventStartMs, c.timeZone, c.clock)}.`;
     toast(r.kind, title, body);
+    if (prefs.reminderSound) playChime();
     if (prefs.systemNotifications) showSystemNotification(title, body, r.id);
   }
   lastReminderCheck = Math.max(lastReminderCheck, now);
@@ -428,6 +504,7 @@ function render(): void {
   const soonest = shown.filter((s) => s.phase !== 'unknown' && s.msToNext !== null)
     .reduce<EventStatus | null>((b, s) => (!b || s.msToNext! < b.msToNext! ? s : b), null);
   const allSightings = everySighting();
+  const done = doneKinds(statuses);
   for (const st of statuses) {
     cards.get(st.kind)?.update(st, c, {
       isNext: soonest?.kind === st.kind,
@@ -439,9 +516,18 @@ function render(): void {
       laterPredictions: laterPredictions(st, c.nowMs),
       lastNote: lastNote(st, c.nowMs),
       extra: extraNote(st),
+      done: done.has(st.kind),
+      starred: prefs.starred[st.kind],
     });
   }
-  timeline.update(shown, c, prefs.comingUp, { all: expansionTimelineNote, one: (kind, startMs) => pickedTimelineNote(kind, startMs, c.nowMs) });
+  strip?.update(shown, done);
+  timeline.update(shown, c, {
+    choice: prefs.comingUp,
+    hours: prefs.comingUpHours,
+    notes: { all: expansionTimelineNote, one: (kind, startMs) => pickedTimelineNote(kind, startMs, c.nowMs) },
+    done,
+    starred: new Set(shown.map((s) => s.kind).filter((k) => prefs.starred[k])),
+  });
   season.update(c);
   sightingsPanel.update();
   map.update();
@@ -513,6 +599,7 @@ async function checkClock(minGapMs = 0): Promise<void> {
 }
 
 applyPrefs();
+primeOnGesture(() => prefs.reminderSound);
 tick();
 void checkClock();
 window.setInterval(() => void checkClock(60000), 6 * 3600000);

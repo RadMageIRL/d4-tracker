@@ -31,6 +31,10 @@ export interface CardExtras {
   lastNote: string | null;
   /** The next start brings a second one at the same time (every fourth World Boss). */
   extra: { text: string; confidence: Confidence } | null;
+  /** The player marked the last start done (until the next one starts). */
+  done: boolean;
+  /** The player starred this event, for Coming up's Starred list. */
+  starred: boolean;
 }
 
 export interface OrderNote {
@@ -139,6 +143,8 @@ function claimBlock(title: string, c: Claim, extra: string | null): HTMLElement 
 export class EventCard {
   readonly el: HTMLElement;
   private pill = h('span', { class: 'pill' });
+  private star: HTMLButtonElement;
+  private isStarred = false;
   private big = h('div', { class: 'big' });
   private bigLabel = h('div', { class: 'big-label' });
   /** Once the in-game map marks where the coming spawn will be. */
@@ -163,6 +169,10 @@ export class EventCard {
     h('summary', {}, this.candidatesLabel, h('span', { class: 'hint' }, ' · predicted'), this.candidatesAlso), this.candidatesList,
     this.candidatesExpansion);
   private extraRow: FactRow | null;
+  /** Spawns: the player's own "done" mark on the last start; the tracker cannot see the game. */
+  private doneNote = h('span', { class: 'hint done-note' });
+  private doneBtn: HTMLButtonElement | null = null;
+  private isDone = false;
   private list = h('ul', { class: 'next-list', 'aria-label': 'Later' });
   private predictions = h('ul', {});
   private predictionsBox = h('details', { class: 'later-predictions', hidden: true }, h('summary', {}, 'Later predictions'), this.predictions);
@@ -172,17 +182,27 @@ export class EventCard {
   private about = h('div', {});
   private aboutKey = '';
 
-  constructor(private kind: EventKind, title: string, opts: { identity: boolean; instant: boolean; extra: boolean; onLog: () => void }) {
+  constructor(private kind: EventKind, title: string,
+    opts: { identity: boolean; instant: boolean; extra: boolean; onLog: () => void; onDone?: (done: boolean) => void; onStar: (starred: boolean) => void }) {
     const headId = `card-${kind}`;
+    this.star = h('button', { class: 'star-btn', type: 'button', 'aria-pressed': 'false', 'aria-label': `Star ${title}`,
+      title: 'Star: list it under Starred in Coming up' }, '☆');
+    this.star.addEventListener('click', () => opts.onStar(!this.isStarred));
     this.nextRow = factRow(this.dl, 'Next');
     this.lastRow = opts.instant ? factRow(this.dl, 'Last') : null;
+    if (this.lastRow && opts.onDone) {
+      const onDone = opts.onDone;
+      this.doneBtn = h('button', { class: 'link done-toggle', type: 'button' }, 'Mark done');
+      this.doneBtn.addEventListener('click', () => onDone(!this.isDone));
+      this.lastRow.dd.append(this.doneNote, this.doneBtn);
+    }
     this.identityRow = opts.identity ? factRow(this.dl, 'Boss') : null;
     this.locationRow = factRow(this.dl, WORDS[kind].locationLabel);
     this.extraRow = opts.extra ? factRow(this.dl, 'Also') : null;
     this.logLink = h('button', { class: 'link log-link', type: 'button' }, 'Log a sighting');
     this.logLink.addEventListener('click', opts.onLog);
     this.el = h('article', { class: 'panel event', 'data-kind': kind, 'aria-labelledby': headId },
-      h('div', { class: 'event-head' }, h('h2', { id: headId }, title), this.pill),
+      h('div', { class: 'event-head' }, h('h2', { id: headId }, title), this.star, this.pill),
       h('div', {}, this.big, this.bigLabel, this.mapHint),
       h('div', { class: 'progress', 'aria-hidden': 'true' }, this.bar),
       this.dl,
@@ -204,6 +224,10 @@ export class EventCard {
   update(st: EventStatus, ctx: ViewContext, extras: CardExtras): void {
     const words = WORDS[this.kind];
     const def = st.definition;
+    this.isStarred = extras.starred;
+    setText(this.star, extras.starred ? '★' : '☆');
+    this.star.classList.toggle('on', extras.starred);
+    this.star.setAttribute('aria-pressed', String(extras.starred));
     this.el.classList.toggle('is-active', st.phase === 'active');
     this.el.classList.toggle('is-next', extras.isNext && st.phase !== 'active');
     if (st.phase === 'unknown' || !st.next) {
@@ -238,6 +262,16 @@ export class EventCard {
       const ago = ctx.nowMs - st.previous.startMs;
       const seen = extras.lastNote ? ` · ${extras.lastNote}` : '';
       showFact(this.lastRow, { known: true, value: `${when(st.previous.startMs, ctx)} (${agoWords(ago)})${seen}`, source: '' });
+    }
+    if (this.doneBtn) {
+      this.isDone = extras.done;
+      setText(this.doneNote, extras.done ? ' · done, marked by you' : '');
+      setText(this.doneBtn, extras.done ? 'Undo' : 'Mark done');
+      this.doneBtn.setAttribute('aria-pressed', String(extras.done));
+      this.doneBtn.title = extras.done
+        ? 'Clear your mark. It also clears by itself when the next one starts.'
+        : 'Mark the last one done, for your own tracking: the tracker cannot see the game. It clears when the next one starts.';
+      this.doneBtn.hidden = !st.previous;
     }
 
     if (this.identityRow) showFact(this.identityRow, st.details.identity);

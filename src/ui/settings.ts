@@ -2,6 +2,7 @@
 // Every change is applied and saved at once; there is no Save button to forget.
 
 import { describeState, notifyState, requestPermission } from './notify';
+import { playChime, primeSound } from './sound';
 import { h } from './dom';
 import { RADAR_LEADS, REMINDER_CHOICES, type CardId, type Prefs } from '../store/prefs';
 
@@ -90,12 +91,19 @@ export function renderSettings(dialog: HTMLDialogElement, hooks: SettingsHooks):
   const systemToggle = state === 'granted'
     ? chip('Also show reminders as system notifications', p.systemNotifications, (on) => hooks.change((q) => { q.systemNotifications = on; }))
     : null;
+  // Turning the sound on is a click, which lets the browser play it: a sample chime confirms it.
+  const sound = chip('Play a sound with each reminder', p.reminderSound, (on) => {
+    if (on) void primeSound().then(playChime);
+    hooks.change((q) => { q.reminderSound = on; });
+  });
 
   const reminders = h('fieldset', {}, h('legend', {}, 'Reminders'),
     ...reminderRows,
+    h('div', { class: 'options', style: 'margin-bottom:8px' }, sound),
     h('p', { class: 'help' },
-      'Reminders appear in this page. They work only while this page is open in a browser tab: in a background tab ' +
-      'the browser can delay them by up to about a minute, and once the tab or browser is closed nothing is sent.'),
+      'Reminders appear in this page and are not guaranteed. They work only while this page is open in a browser tab: in a ' +
+      'background tab the browser can delay them by up to about a minute, and once the tab or browser is closed nothing is ' +
+      'sent. The sound plays once you have clicked anywhere in the page since opening it (a browser rule).'),
     status,
     state === 'default' ? h('div', { style: 'margin-top:8px' }, ask) : null,
     systemToggle ? h('div', { class: 'options', style: 'margin-top:8px' }, systemToggle) : null,

@@ -7,7 +7,7 @@ your browser from rules kept in this repository; it does not depend on any other
 
 Live at https://radmagelabs.com/d4/
 
-![Diablo IV Tracker v0.7.2 at 12:47 AM UTC on a first visit: an active Helltide with 8:00 left, predicted in Fractured Peaks and Skovos, which the Sanctuary Event Radar outlines in red; the World Boss in 13:00 with its predicted boss, Wandering Death, a second World Boss in an expansion region, and a prompt to check the in-game map for boss and location; the next Legion in 8:00 with its six candidate sites folded, four base-game and two expansion, and a prompt to check the in-game map; six hours of coming-up starts with All, Helltide, World Boss and Legion picks, each Legion with its predicted expansion region; the empty sightings log and the Season 15 panel](screenshots/dashboard.png)
+![Diablo IV Tracker v0.7.3 at 12:47 AM UTC on a first visit: an active Helltide with 8:00 left, predicted in Fractured Peaks and Skovos, which the Sanctuary Event Radar outlines in red; the World Boss in 13:00 with its predicted boss, Wandering Death, a star beside each card name and a Mark done link on the last spawn, a second World Boss in an expansion region, and a prompt to check the in-game map for boss and location; the next Legion in 8:00 with its six candidate sites folded, four base-game and two expansion, and a prompt to check the in-game map; six hours of coming-up starts with a how-far-ahead dropdown, Add to calendar, and All, starred, Helltide, World Boss and Legion picks, each Legion with its predicted expansion region; the empty sightings log and the Season 15 panel](screenshots/dashboard.png)
 
 ## What it shows
 
@@ -21,9 +21,18 @@ Live at https://radmagelabs.com/d4/
 - **Legion.** A countdown to the next Legion event, when the last one started, the next three, and
   its six candidate sites, four base-game and two expansion. From ten minutes before, the card says
   to check the in-game map.
+- **Done.** Once you have done a World Boss or a Legion, mark it done on its card. The card says
+  "done, marked by you" (the tracker cannot see the game), Coming up dims that event, and the mark
+  clears by itself when the next one starts.
 - **Coming up.** Every start in the next six hours in one list. Pick Helltide, World Boss or Legion
   to list only that event's starts, each with what is predicted for it: the Helltide's regions, the
-  World Boss's boss (a whole day of World Bosses), the Legion's candidates.
+  World Boss's boss, the Legion's candidates. The dropdown beside the heading sets how far ahead
+  each list looks, 6 to 24 hours (the World Boss starts at a day and goes up to 72 hours), and
+  each list remembers its own. Star an event (☆ beside
+  its name on its card) and the ★ pick lists just your starred events. **Add to calendar** saves
+  what the list shows as a calendar file (.ics) for Google Calendar, Outlook or Apple Calendar: each
+  start with its prediction written out and a reminder (your own reminder time for that event,
+  otherwise 10 minutes before). Importing it again updates those starts instead of adding copies.
 - **Season.** The live season, when it started and how many days in it is, its end and the next
   season's start once Blizzard announces them, announced windows such as a PTR, and every past
   season with its dates and length.
@@ -44,10 +53,12 @@ Live at https://radmagelabs.com/d4/
 - **Sightings.** Log what you see in game (a spawn time, the boss, the arena, the Helltide region,
   a chest spot). The tracker checks your times against its schedule, re-pins the World Boss
   rotation to what you saw, and tests for other repeating orders.
-- **Reminders.** World Boss 15, 10 or 5 minutes before, Legion 5 minutes before, Helltide when it
-  begins, in the page and, if you allow them, as system notifications.
+- **Reminders.** 15, 10 or 5 minutes before a World Boss, a Legion or a Helltide (and when a
+  Helltide begins), in the page with an optional sound and, if you allow them, as system
+  notifications. Your choices are kept in this browser.
 - **Tab title.** The next event's countdown (or a chosen event's) in the browser tab.
-- **Second monitor.** Compact view, or **Pop out** for a small window with just the countdowns.
+- **Second monitor.** Compact view, or **Pop out** for a small window with just the countdowns. A
+  star or a done mark set in one window shows in the other.
 - **Settings.** Show or hide each panel, dark (default) or light, 12- or 24-hour clock, your time
   zone or UTC. Saved in this browser only.
 
@@ -145,9 +156,11 @@ if the answers are inconsistent, nothing is corrected and the settings say why.
 
 ## Reminders: what to expect
 
-Reminders come from this page's own timers, so:
+Reminders come from this page's own timers, so they are not guaranteed:
 
 - They work only while the page is open in a browser tab.
+- The sound plays once you have clicked anywhere in the page since opening it (browsers keep a
+  page silent until then).
 - In a background tab the browser can hold timers back, so a reminder can be up to about a minute
   late, and the tab title shows whole minutes. A reminder that would be more than 3 minutes late
   (the computer was asleep) is skipped.
