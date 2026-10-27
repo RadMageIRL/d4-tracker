@@ -496,6 +496,16 @@ byId('popout-open').addEventListener('click', () => {
   url.hash = 'compact';
   window.open(url.href, 'd4-tracker-compact', 'popup=yes,width=760,height=200');
 });
+// Share always passes the canonical address, wherever the page was opened: the device's share sheet
+// when there is one; otherwise, or if it fails, the link is copied. Closing the sheet does nothing.
+byId('share').addEventListener('click', async () => {
+  const url = document.querySelector<HTMLLinkElement>('link[rel="canonical"]')?.href ?? 'https://radmagelabs.com/d4/';
+  const data = { title: document.querySelector<HTMLMetaElement>('meta[property="og:title"]')?.content ?? document.title, url };
+  if (navigator.share && (!navigator.canShare || navigator.canShare(data))) {
+    try { await navigator.share(data); return; } catch (e) { if (e instanceof Error && e.name === 'AbortError') return; }
+  }
+  try { await navigator.clipboard.writeText(url); toast(null, 'Link copied', url); } catch { toast(null, 'Copy this link', url); }
+});
 
 // Reminders
 

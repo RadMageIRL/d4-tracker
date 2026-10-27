@@ -179,6 +179,30 @@ try {
     check('an inferred start time shows what confirms it', about.includes(progressText(sharedStarts('worldBoss'))), about.slice(0, 400));
     const link = await page.eval(`[...document.querySelectorAll('footer a')].map(a => a.href)`);
     check('footer links to radmagelabs.com', link.includes('https://radmagelabs.com/'), JSON.stringify(link));
+    const footerLinks = await page.eval(`[...document.querySelectorAll('footer .footer-links a, footer .footer-links button')].map(e => [e.textContent, e.getAttribute('href'), e.target || null, e.rel || null])`);
+    check('the footer has Share, Feedback (GitHub Issues) and Buy me a coffee, the links in a new tab', JSON.stringify(footerLinks) === JSON.stringify([
+      ['Share', null, null, null],
+      ['Feedback', 'https://github.com/RadMageIRL/d4-tracker/issues', '_blank', 'noopener'],
+      ['Buy me a coffee', 'https://buymeacoffee.com/radmageirl', '_blank', 'noopener']]), JSON.stringify(footerLinks));
+    // Share hands the canonical address to the share sheet; with no sheet it copies it and says so.
+    const shared = await page.eval(`(async () => {
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+      const sheet = [];
+      let copied = null;
+      Object.defineProperty(navigator, 'share', { configurable: true, value: async (d) => { sheet.push(d.url); } });
+      document.querySelector('#share').click(); await sleep(100);
+      const toastsAfterSheet = document.querySelectorAll('.toast').length;
+      Object.defineProperty(navigator, 'share', { configurable: true, value: undefined });
+      Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (t) => { copied = t; } } });
+      document.querySelector('#share').click(); await sleep(100);
+      const toast = [...document.querySelectorAll('.toast')].map((t) => t.textContent).join('|');
+      delete navigator.share; delete navigator.clipboard;
+      document.querySelectorAll('.toast').forEach((t) => t.remove());
+      return { sheet, toastsAfterSheet, copied, toast };
+    })()`);
+    check('Share passes https://radmagelabs.com/d4/ to the share sheet, or copies it where there is none',
+      JSON.stringify(shared.sheet) === '["https://radmagelabs.com/d4/"]' && shared.toastsAfterSheet === 0 && shared.copied === 'https://radmagelabs.com/d4/'
+        && shared.toast.startsWith('Link copiedhttps://radmagelabs.com/d4/'), JSON.stringify(shared));
     await page.waitFor("document.querySelector('#clock-sub').textContent.includes('UTC')");
     const external = page.requests.filter((u) => !u.startsWith(origin) && !u.startsWith('data:'));
     check('no request leaves the site', external.length === 0, JSON.stringify(external));
@@ -277,6 +301,7 @@ try {
     await page.waitFor("document.querySelector('.event .big').textContent !== '--:--'");
     check('compact survives a reload', await page.eval("document.documentElement.classList.contains('compact')"));
     check('compact hides the map', await page.eval("getComputedStyle(document.getElementById('lower')).display === 'none'"));
+    check('compact leaves the footer\'s Share, Feedback and coffee links out', await page.eval("getComputedStyle(document.querySelector('.footer-links')).display === 'none'"));
     await page.viewport(900, 900);
     const tallest = await page.eval("Math.max(...[...document.querySelectorAll('.event')].map(e => e.getBoundingClientRect().height))");
     check('compact cards stay short in a tall window', tallest < 170, `${Math.round(tallest)} px`);

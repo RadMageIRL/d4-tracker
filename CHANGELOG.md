@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.7.5 (2026-10-26)
+
+- Share, Feedback and Buy me a coffee, in a line at the top of the footer. Share always passes
+  https://radmagelabs.com/d4/, whichever address the page was opened at: where the device has a
+  share sheet it opens that; otherwise, or if the sheet fails, it copies the link and says so.
+  Feedback opens the GitHub Issues page. Both links open in a new tab, so the timers and reminders
+  keep running in this one. Compact view leaves the line out, and the pop-out has no footer.
+- The README has a Feedback section.
+- Unchanged: the schedules, every prediction and its label, the radar, Coming up, stars, done marks,
+  reminders and Latest news.
+
 ## v0.7.4 (2026-10-25)
 
 - Latest news. A bar above the cards, closed until you open it, with the eight newest posts from

@@ -561,6 +561,9 @@ footer {
 }
 footer p { margin: 2px 0; }
 footer a { color: var(--text-dim); }
+/* Share, feedback and coffee: each at least 24px tall, so they are easy to tap. */
+.footer-links { line-height: 24px; }
+.footer-links a, .footer-links button.link { display: inline-block; padding: 0 2px; }
 
 /* Compact mode: just the three countdowns, for a narrow second-monitor window. */
 
@@ -585,7 +588,8 @@ footer a { color: var(--text-dim); }
 :root.popout #compact-toggle,
 :root.popout footer { display: none; }
 :root.compact footer { padding: 6px 12px 8px; }
-:root.compact footer .long { display: none; }
+:root.compact footer .long,
+:root.compact .footer-links { display: none; }
 
 /* Narrower screens */
 

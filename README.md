@@ -196,6 +196,10 @@ flagged. An order is looked for only when every position in a cycle has been see
 and counts only after it predicts later sightings, as above. Sightings from before the current
 season are not used, and a known upcoming season start ends any prediction.
 
+## Feedback
+
+To report a problem or suggest something, open an issue on [GitHub Issues](https://github.com/RadMageIRL/d4-tracker/issues). If you'd like to support future projects, you can [buy me a coffee](https://buymeacoffee.com/radmageirl).
+
 ## Running it without a web server
 
 `npm run build` puts everything into one file, `dist/index.html`. Open it straight from disk and it
