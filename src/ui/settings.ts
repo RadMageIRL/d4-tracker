@@ -58,7 +58,7 @@ export function renderSettings(dialog: HTMLDialogElement, hooks: SettingsHooks):
   const title = h('fieldset', {}, h('legend', {}, 'Tab title'),
     radios('title', p.title, [['next', 'Next event'], ['helltide', 'Helltide'], ['worldBoss', 'World Boss'], ['legion', 'Legion'], ['off', 'Off']],
       (v) => hooks.change((q) => { q.title = v; })),
-    h('p', { class: 'help' }, 'The countdown in the browser tab. In a background tab the browser updates it about once a minute, so it shows whole minutes there.'),
+    h('p', { class: 'help' }, 'The countdown in the browser tab while the tab is in the background, in whole minutes (the browser updates a background tab about once a minute). With the tab in view, the page\'s own name stays in the title. The pop-out window\'s title counts down all the time.'),
   );
 
   const time = h('fieldset', {}, h('legend', {}, 'Times'),

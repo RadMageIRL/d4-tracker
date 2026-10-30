@@ -8,7 +8,7 @@ browser from rules kept in this repository; it does not depend on any other trac
 
 Live at https://radmagelabs.com/d4/
 
-![Diablo IV Tracker v0.7.4 at 12:47 AM UTC on a first visit: the Latest news bar from Blizzard News, closed, above the cards; an active Helltide with 8:00 left, predicted in Fractured Peaks and Skovos, which the Sanctuary Event Radar outlines in red; the World Boss in 13:00 with its predicted boss, Wandering Death, a star beside each card name and a Mark done link on the last spawn, a second World Boss in an expansion region, and a prompt to check the in-game map for boss and location; the next Legion in 8:00 with its six candidate sites folded, four base-game and two expansion, and a prompt to check the in-game map; six hours of coming-up starts with a how-far-ahead dropdown, Add to calendar, and All, starred, Helltide, World Boss and Legion picks, each Legion with its predicted expansion region; the empty sightings log and the Season 15 panel](screenshots/dashboard.png)
+![Diablo IV Tracker v0.7.6 at 8:21 PM UTC on a first visit: the Latest news bar from Blizzard News, closed, above the cards; an active Helltide with 33:47 left, predicted in Fractured Peaks and Skovos, which the Sanctuary Event Radar outlines in red; the World Boss in 38:47 with its predicted boss, Wandering Death, a second World Boss in an expansion region, a Mark done link on the last spawn and a prompt to check the in-game map for boss and location; the next Legion in 8:47 with its six candidate sites folded, four base-game and two expansion, and a prompt to check the in-game map; six hours of coming-up starts with a how-far-ahead dropdown, Add to calendar, and All, starred, Helltide, World Boss and Legion picks, each Legion with its predicted expansion region; the empty sightings log; the Season 15 panel with the 3.3.0 PTR running; and the footer, ending with Source on GitHub, Share, Feedback and Buy me a coffee](screenshots/dashboard.png)
 
 ## What it shows
 
@@ -41,8 +41,9 @@ Live at https://radmagelabs.com/d4/
   are kept in this browser for 15 minutes, the bar remembers whether you left it open, and compact
   view and the pop-out leave it out. At radmageirl.github.io it links to Blizzard News instead.
 - **Season.** The live season, when it started and how many days in it is, its end and the next
-  season's start once Blizzard announces them, announced windows such as a PTR, and every past
-  season with its dates and length.
+  season's start once Blizzard announces them, and announced windows such as a PTR while they are
+  coming up or running. Folded under Past seasons: every past season with its dates and length,
+  and every window that has ended.
 - **Sanctuary Event Radar.** The seven regions at a glance: a region with a Helltide on breathes
   red (a dashed outline, as the game's map draws it), and a World Boss or Legion seen in game is a
   gold or violet dot in its region (from 30 minutes before a World Boss, or 15 or 60 as you choose,
@@ -63,7 +64,9 @@ Live at https://radmagelabs.com/d4/
 - **Reminders.** 15, 10 or 5 minutes before a World Boss, a Legion or a Helltide (and when a
   Helltide begins), in the page with an optional sound and, if you allow them, as system
   notifications. Your choices are kept in this browser.
-- **Tab title.** The next event's countdown (or a chosen event's) in the browser tab.
+- **Tab title.** While the tab is in the background, the next event's countdown (or a chosen
+  event's) in whole minutes. With the tab in view the title is the page's own name, since the
+  countdowns are on the page. The pop-out window's title counts down all the time.
 - **Second monitor.** Compact view, or **Pop out** for a small window with just the countdowns. A
   star or a done mark set in one window shows in the other.
 - **Settings.** Show or hide each panel, dark (default) or light, 12- or 24-hour clock, your time
@@ -133,9 +136,15 @@ correct predictions, none wrong, on sightings it was not found in, with a lucky 
 (judged against a guesser who knows how often each value has turned up). A sighting that breaks it
 withdraws it, and learning starts again from there, with a stricter bar each time.
 
-Announced changes are part of the data. Season 16 starts Helltides on the hour in base-game zones
-and on the half hour in expansion zones (3.3.0 PTR notes); once its date is announced, the new
-schedule is added with that date and the switch happens on its own.
+Announced changes are part of the data. **Pending: the Season 16 Helltide change.** Blizzard's
+3.3.0 PTR notes say Helltides will start on the hour in base-game zones and on the half hour in
+expansion zones. Blizzard has not announced when Season 16 starts, so the tracker keeps the
+current schedule (every Helltide on the hour), the Helltide card says so, and no date is guessed.
+Once the date is announced, an update adds it: the current schedule ends then, the base-game
+Helltide keeps its times on the hour, and the expansion Helltide gets its own times on the half
+hour. The tracker counts one Helltide schedule at a time today, so that last part needs code as
+well as data. Helltide region predictions stop at the switch until the new cycles are checked in
+game.
 
 ## What it does not know
 
@@ -250,7 +259,8 @@ tests/         unit tests, fixtures and the browser smoke test
 The data lives in `data/` with a checked date and sources on every record; the page shows how
 long ago it was checked and flags anything older than 60 days. After a patch or a season change:
 
-- `data/seasons.json`: add an announced season end, start or PTR window.
+- `data/seasons.json`: add an announced season end, start or PTR window. A window that has ended
+  stays in the file; the page moves it under Past seasons by itself.
 - `data/events.json`: close a schedule with `until` and add the next one with `from` when a timing
   change goes live.
 - `data/locations.json`: add waypoints, arenas, Legion sites or chest spots, marked Confirmed only

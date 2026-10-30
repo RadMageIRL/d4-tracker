@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.7.6 (2026-10-30)
+
+- The page keeps its own title (Diablo IV Tracker - Helltide, World Boss and Legion Timers |
+  RadMage Labs) while its tab is in view, so search results and bookmarks show that instead of a
+  ticking countdown. In a background tab the title still counts down, in whole minutes, and the
+  pop-out window's title counts down all the time. Settings says so under Tab title.
+- The footer ends with Source on GitHub (new), Share, Feedback and Buy me a coffee, after the
+  RadMage Labs line and the fan-tool notice; the line used to be first.
+- A PTR that has ended leaves the season panel: no countdown or status line is left for it. It
+  stays on record, with its dates and announcement, under Past seasons, and the data file keeps
+  every window.
+- The README describes the pending Season 16 Helltide change: what is announced, what the
+  tracker does until the date is, and what the update will need then.
+- A shorter page description (152 characters, short enough for search results): "A free,
+  ad-free Diablo IV (Diablo 4) tracker: Helltide, World Boss and Legion timers in your time zone,
+  with predicted regions, bosses and Legion sites." The link preview and structured data use the
+  same words.
+- The header reads "v0.7.6 · RadMage Labs", with a space after the dot.
+- A new link-preview image: the title over terrain art of the seven regions, beside the Helltide,
+  World Boss and Legion cards. The page's description of the image (og:image:alt) matches it.
+- The README screenshot is v0.7.6.
+- Unchanged: the Helltide, World Boss and Legion schedules, every prediction and its label, the
+  radar, Coming up, reminders and Latest news.
+
 ## v0.7.5 (2026-10-26)
 
 - Share, Feedback and Buy me a coffee, in a line at the top of the footer. Share always passes

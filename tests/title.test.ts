@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DETAIL_REASONS, eventDefinitions } from '../src/data';
 import { OfflineDetailsSource } from '../src/adapters/offline-details';
 import { eventStatus } from '../src/engine/events';
-import { APP_TITLE, tabTitle } from '../src/engine/title';
+import { APP_TITLE, documentTitle, tabTitle } from '../src/engine/title';
 
 const offline = new OfflineDetailsSource(DETAIL_REASONS);
 const at = (t: number) => eventDefinitions().map((d) => eventStatus(d, offline.details(d.kind), t));
@@ -35,5 +35,31 @@ describe('tab title', () => {
   it('picks the next event among those passed in (hidden cards are left out by the caller)', () => {
     const noLegion = at(now).filter((s) => s.kind !== 'legion');
     expect(tabTitle(noLegion, 'next', true)).toBe(`Helltide 45:30 - ${APP_TITLE}`);
+  });
+});
+
+describe('document title', () => {
+  const PAGE = 'Diablo IV Tracker - Helltide, World Boss and Legion Timers | RadMage Labs';
+
+  it('keeps the page\'s own title in the main window while it is in view, whatever is chosen', () => {
+    for (const choice of ['next', 'helltide', 'worldBoss', 'legion', 'off'] as const) {
+      expect(documentTitle(at(now), choice, true, false, PAGE)).toBe(PAGE);
+    }
+  });
+
+  it('counts down in whole minutes when the main window\'s tab is in the background', () => {
+    expect(documentTitle(at(now), 'next', false, false, PAGE)).toBe(`Legion in 6 min - ${APP_TITLE}`);
+    expect(documentTitle(at(now), 'helltide', false, false, PAGE)).toBe(`Helltide 41 min left - ${APP_TITLE}`);
+  });
+
+  it('counts down in the pop-out, with seconds while it is in view', () => {
+    expect(documentTitle(at(now), 'next', true, true, PAGE)).toBe(`Legion 5:30 - ${APP_TITLE}`);
+    expect(documentTitle(at(now), 'next', false, true, PAGE)).toBe(`Legion in 6 min - ${APP_TITLE}`);
+  });
+
+  it('falls back to the page\'s own title, not the short name, when there is nothing to count down', () => {
+    expect(documentTitle(at(now), 'off', false, false, PAGE)).toBe(PAGE);
+    expect(documentTitle(at(now), 'off', true, true, PAGE)).toBe(PAGE);
+    expect(documentTitle([], 'next', false, true, PAGE)).toBe(PAGE);
   });
 });

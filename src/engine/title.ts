@@ -1,6 +1,9 @@
 // The browser tab title: the next event's countdown, so a background tab still tells the time.
 // Browsers slow timers in background tabs (Chrome to about once a minute after a few minutes), so
 // a hidden tab shows whole minutes, rounded up, instead of seconds that would be stale.
+//
+// The main window keeps the page's own title while it is in view: that is the title search engines
+// and bookmarks take, and the countdowns are on the page itself. The pop-out always counts down.
 
 import type { EventKind, EventStatus } from './events';
 import { countdown, spanWords } from './format';
@@ -30,4 +33,15 @@ export function tabTitle(statuses: EventStatus[], choice: TitleChoice, visible: 
   }
   const ms = st.msToNext!;
   return `${st.name} ${visible ? countdown(ms) : `in ${spanWords(ms)}`} - ${APP_TITLE}`;
+}
+
+/**
+ * The document title to set.
+ * @param pageTitle The page's own title, from its HTML.
+ * @param popout    Whether this is the pop-out window.
+ */
+export function documentTitle(statuses: EventStatus[], choice: TitleChoice, visible: boolean, popout: boolean, pageTitle: string): string {
+  if (visible && !popout) return pageTitle;
+  const title = tabTitle(statuses, choice, visible);
+  return title === APP_TITLE ? pageTitle : title;
 }

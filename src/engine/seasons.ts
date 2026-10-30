@@ -47,7 +47,10 @@ export interface SeasonView {
   daysIn: number | null;
   currentEndMs: number | null;
   nextStartMs: number | null;
+  /** Announced windows not over yet: upcoming or running. */
   windows: WindowView[];
+  /** Windows that have ended, the latest first. Kept for the record, never counted down. */
+  pastWindows: WindowView[];
   /** Newest first, the live season included. */
   history: HistoryRow[];
 }
@@ -72,17 +75,19 @@ export function seasonView(feed: SeasonFeed, nowMs: number): SeasonView {
       days: next ? daysBetween(s.startDate, next.startDate) : null,
     };
   }).reverse();
+  const windows = feed.windows.map((w): WindowView => {
+    const startMs = Date.parse(w.startUtc);
+    const endMs = Date.parse(w.endUtc);
+    return { window: w, startMs, endMs, state: windowState(startMs, endMs, nowMs) };
+  });
   return {
     current,
     currentStartMs,
     daysIn: currentStartMs === null ? null : Math.floor((nowMs - currentStartMs) / DAY),
     currentEndMs: feed.currentEndUtc ? Date.parse(feed.currentEndUtc) : null,
     nextStartMs: feed.nextStartUtc ? Date.parse(feed.nextStartUtc) : null,
-    windows: feed.windows.map((w) => {
-      const startMs = Date.parse(w.startUtc);
-      const endMs = Date.parse(w.endUtc);
-      return { window: w, startMs, endMs, state: windowState(startMs, endMs, nowMs) };
-    }),
+    windows: windows.filter((w) => w.state !== 'ended'),
+    pastWindows: windows.filter((w) => w.state === 'ended').sort((a, b) => b.endMs - a.endMs),
     history,
   };
 }

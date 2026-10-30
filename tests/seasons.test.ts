@@ -110,4 +110,24 @@ describe('announced windows', () => {
     expect(start).toBe(Date.UTC(2026, 9, 27, 17, 0));
     expect(end).toBe(Date.UTC(2026, 10, 3, 18, 0));
   });
+
+  it('lists a window while it is upcoming or running, then only among the past windows', () => {
+    const labels = (ws: { window: { label: string } }[]) => ws.map((x) => x.window.label);
+    const before = seasonView(SEASON_FEED, start - 1);
+    expect(before.windows.find((x) => x.window === w)?.state).toBe('upcoming');
+    expect(labels(before.pastWindows)).not.toContain(w.label);
+    expect(seasonView(SEASON_FEED, end - 1).windows.find((x) => x.window === w)?.state).toBe('running');
+    const after = seasonView(SEASON_FEED, end);
+    expect(labels(after.windows)).not.toContain(w.label);
+    expect(labels(after.pastWindows)).toContain(w.label);
+    expect(after.pastWindows.every((x) => x.state === 'ended')).toBe(true);
+  });
+
+  it('keeps every ended window, the latest first', () => {
+    const older = { ...w, label: 'Season 15 PTR', startUtc: '2026-08-04T17:00:00Z', endUtc: '2026-08-11T17:00:00Z' };
+    const feed = { ...SEASON_FEED, windows: [older, w] };
+    const after = seasonView(feed, end + 1);
+    expect(after.windows).toEqual([]);
+    expect(after.pastWindows.map((x) => x.window.label)).toEqual([w.label, 'Season 15 PTR']);
+  });
 });

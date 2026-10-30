@@ -101,6 +101,10 @@ async function open(at, { prefs, timezone, width = 1440, height = 900, mobile = 
 }
 
 const text = (sel) => `(document.querySelector(${JSON.stringify(sel)})?.textContent ?? '')`;
+/** The page's own title, the one search engines and bookmarks take. */
+const PAGE_TITLE = 'Diablo IV Tracker - Helltide, World Boss and Legion Timers | RadMage Labs';
+const CANONICAL = 'https://radmagelabs.com/d4/';
+const VERSION = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
 /** Select a region on the radar (its events), then open its places and chest spots. */
 async function openPlaces(page, name) {
   await page.eval(`[...document.querySelectorAll('.atlas-region')].find(x => x.getAttribute('aria-label').startsWith('${name}')).dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
@@ -180,10 +184,15 @@ try {
     const link = await page.eval(`[...document.querySelectorAll('footer a')].map(a => a.href)`);
     check('footer links to radmagelabs.com', link.includes('https://radmagelabs.com/'), JSON.stringify(link));
     const footerLinks = await page.eval(`[...document.querySelectorAll('footer .footer-links a, footer .footer-links button')].map(e => [e.textContent, e.getAttribute('href'), e.target || null, e.rel || null])`);
-    check('the footer has Share, Feedback (GitHub Issues) and Buy me a coffee, the links in a new tab', JSON.stringify(footerLinks) === JSON.stringify([
+    check('the footer has Source on GitHub, Share, Feedback (GitHub Issues) and Buy me a coffee, the links in a new tab', JSON.stringify(footerLinks) === JSON.stringify([
+      ['Source on GitHub', 'https://github.com/RadMageIRL/d4-tracker', '_blank', 'noopener'],
       ['Share', null, null, null],
       ['Feedback', 'https://github.com/RadMageIRL/d4-tracker/issues', '_blank', 'noopener'],
       ['Buy me a coffee', 'https://buymeacoffee.com/radmageirl', '_blank', 'noopener']]), JSON.stringify(footerLinks));
+    const footerOrder = await page.eval(`[...document.querySelector('footer').children].map(e => e.matches('.footer-links') ? 'links' : e.matches('.long') ? 'notice' : e.querySelector('a[href="https://radmagelabs.com/"]') ? 'labs' : e.tagName)`);
+    check('the footer reads RadMage Labs, then the fan-tool notice, then the project links last', JSON.stringify(footerOrder) === '["labs","notice","links"]', JSON.stringify(footerOrder));
+    const unsafe = await page.eval(`[...document.querySelectorAll('a[target="_blank"]')].filter(a => !a.relList.contains('noopener')).map(a => a.href)`);
+    check('every link that opens a new tab has rel="noopener"', unsafe.length === 0, JSON.stringify(unsafe));
     // Share hands the canonical address to the share sheet; with no sheet it copies it and says so.
     const shared = await page.eval(`(async () => {
       const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -401,15 +410,28 @@ try {
     if (shots) await page.screenshot(join(shots, 'light.png'), true);
   }
 
-  // 5b. The active event breathes; reduced motion stops the animation. The tab title counts down.
+  // 5b. The active event breathes; reduced motion stops the animation. The page keeps its own title
+  // while in view; a background tab counts down.
   {
     const page = await open('2026-10-24T15:00:00Z', { timezone: 'UTC' });
     const anim = (kind) => `getComputedStyle(document.querySelector('.event[data-kind="${kind}"]')).animationName`;
     check('active Helltide card breathes', (await page.eval(anim('helltide'))) === 'breathe');
     check('waiting cards do not', (await page.eval(anim('worldBoss'))) === 'none');
     check('the soonest event is outlined', await page.eval(`document.querySelector('.event[data-kind="legion"]').classList.contains('is-next')`));
-    const title = await page.eval('document.title');
-    check('tab title counts down to the next event', /^Legion (20:00|19:5\d) - Diablo IV Tracker$/.test(title), title);
+    const titles = [await page.eval('document.title')];
+    await sleep(1200);
+    titles.push(await page.eval('document.title'));
+    check('in view, the title is the page\'s own and does not tick', titles.every((t) => t === PAGE_TITLE), JSON.stringify(titles));
+    const visibility = (state) => `(async () => {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => '${state}' });
+      document.dispatchEvent(new Event('visibilitychange'));
+      await new Promise((r) => setTimeout(r, 100));
+      return document.title;
+    })()`;
+    const hidden = await page.eval(visibility('hidden'));
+    check('in a background tab the title counts down to the next event in whole minutes', hidden === 'Legion in 20 min - Diablo IV Tracker', hidden);
+    const shown = await page.eval(visibility('visible'));
+    check('back in view, the page\'s own title returns', shown === PAGE_TITLE, shown);
     await page.emulateMedia([{ name: 'prefers-reduced-motion', value: 'reduce' }]);
     check('reduced motion: no breathing', (await page.eval(anim('helltide'))) === 'none');
     check('reduced motion: still outlined', (await page.eval(`getComputedStyle(document.querySelector('.event[data-kind="helltide"]')).boxShadow`)) !== 'none');
@@ -517,6 +539,8 @@ try {
     check('pop-out does not save compact', saved === null || JSON.parse(saved).compact !== true, saved);
     check('pop-out fits a 200 px window without scrolling', await page.eval('document.documentElement.scrollHeight <= innerHeight'));
     check('pop-out hides the log button', await page.eval("getComputedStyle(document.getElementById('log-open')).display === 'none'"));
+    const popTitle = await page.eval('document.title');
+    check('the pop-out\'s title counts down with seconds', /^(Helltide|World Boss|Legion) (\d+:)?\d+:\d\d (left )?- Diablo IV Tracker$/.test(popTitle), popTitle);
     if (shots) await page.screenshot(join(shots, 'popout.png'));
     await page.viewport(400, 300);
     await sleep(200);
@@ -555,6 +579,52 @@ try {
     const sameOrigin = await page.eval(`fetch(location.href, { method: 'HEAD' }).then((r) => 'ok ' + r.status, () => 'blocked')`);
     check('the CSP still allows the clock check to its own address', sameOrigin === 'ok 200', sameOrigin);
     check('no outside request went out', page.requests.every((u) => u.startsWith(origin) || !/^https?:/.test(u)), JSON.stringify(page.requests.filter((u) => !u.startsWith(origin))));
+    // What search engines and link previews read from the built page.
+    const head = await page.eval(`(() => {
+      const meta = (k) => document.querySelector('meta[name="' + k + '"], meta[property="' + k + '"]')?.content ?? null;
+      const ld = JSON.parse(document.querySelector('script[type="application/ld+json"]')?.textContent ?? 'null');
+      return {
+        title: document.querySelector('title')?.textContent, canonical: document.querySelector('link[rel=canonical]')?.href,
+        description: meta('description'), ogUrl: meta('og:url'), ogType: meta('og:type'), ogTitle: meta('og:title'),
+        ogDescription: meta('og:description'), ogImage: meta('og:image'), ogImageW: meta('og:image:width'), ogImageH: meta('og:image:height'),
+        ogImageAlt: meta('og:image:alt'), twitterCard: meta('twitter:card'), robots: meta('robots'),
+        icon: document.querySelector('link[rel=icon]')?.getAttribute('href') ?? '',
+        ldUrl: ld?.url, ldName: ld?.name, ldType: ld?.['@type'],
+      };
+    })()`);
+    check('the title tag is the page\'s own, descriptive title', head.title === PAGE_TITLE, head.title);
+    check('canonical, og:url and the structured data all name radmagelabs.com/d4/', head.canonical === CANONICAL && head.ogUrl === CANONICAL && head.ldUrl === CANONICAL, JSON.stringify([head.canonical, head.ogUrl, head.ldUrl]));
+    check('the description and its og copy match, and name Diablo IV and the three events', head.description === head.ogDescription
+      && ['Diablo IV', 'Helltide', 'World Boss', 'Legion'].every((w) => head.description?.includes(w)), head.description);
+    check('the description fits a search result (140 to 160 characters) and says free and ad-free', head.description.length >= 140
+      && head.description.length <= 160 && ['Diablo 4', 'free', 'ad-free', 'timers'].every((w) => head.description.includes(w)), `${head.description.length}: ${head.description}`);
+    const tag = await page.eval(`document.querySelector('.brand .tag').textContent`);
+    check('the header reads the package version, a spaced dot, then RadMage Labs', tag === `v${VERSION} · RadMage Labs`, JSON.stringify(tag));
+    check('the link preview has a title, a 1200 x 630 https image with alt text, and a large Twitter/X card',
+      head.ogType === 'website' && !!head.ogTitle && /^https:\/\/radmagelabs\.com\/assets\/og\/[\w-]+\.png$/.test(head.ogImage ?? '')
+      && head.ogImageW === '1200' && head.ogImageH === '630' && (head.ogImageAlt ?? '').length > 20 && head.twitterCard === 'summary_large_image', JSON.stringify(head));
+    check('nothing asks search engines to stay away, and the page has its own icon', head.robots === null && head.icon.startsWith('data:image/svg+xml,'), JSON.stringify([head.robots, head.icon.slice(0, 30)]));
+    check('the structured data names the app', head.ldType === 'WebApplication' && head.ldName === 'Diablo IV Tracker', JSON.stringify([head.ldType, head.ldName]));
+  }
+
+  // 5j. The season panel counts down to a PTR while it runs; once it ends, it is only on record,
+  // folded under Past seasons, with no countdown left on the panel.
+  {
+    const lines = (page) => page.eval(`(() => {
+      const panel = document.getElementById('season-panel');
+      const open = [...panel.querySelectorAll('.window')].filter((w) => !w.closest('details')).map((w) => w.textContent);
+      const past = [...panel.querySelectorAll('details .past-windows .window')].map((w) => w.textContent);
+      const outside = [...panel.children[0].children].filter((e) => e.tagName !== 'DETAILS').map((e) => e.textContent).join(' | ');
+      return { open, past, outside };
+    })()`);
+    const during = await lines(await open('2026-10-30T12:00:00Z', { timezone: 'UTC' }));
+    check('during the PTR the panel shows it running, with its time left', during.open.length === 1 && during.open[0].includes('Season 16 PTR (3.3.0, PC only)')
+      && during.open[0].includes('Running now, ends in 4 d 6 h') && during.past.length === 0, JSON.stringify(during));
+    const after = await lines(await open('2026-11-04T00:00:00Z', { timezone: 'UTC' }));
+    check('after the PTR the panel has no window, countdown or status line for it', after.open.length === 0
+      && !/Starts in|Running now|Ended|ended/.test(after.outside), JSON.stringify(after));
+    check('the ended PTR stays on record under Past seasons, with its dates and announcement',
+      JSON.stringify(after.past) === JSON.stringify(['Season 16 PTR (3.3.0, PC only) Oct 27, 2026 to Nov 3, 2026 · ended · announcement']), JSON.stringify(after.past));
   }
 
   // 6. Opened straight from disk (file://), with no web server.
@@ -583,6 +653,9 @@ try {
     const page = await open('2026-10-24T15:00:00Z', { width: 390, height: 844, mobile: true, before: "localStorage.removeItem('d4-tracker:v1:observations')" });
     const overflow = await page.eval('document.documentElement.scrollWidth - innerWidth');
     check('no horizontal scroll at 390 px', overflow <= 0, `overflow ${overflow}px`);
+    const footer = await page.eval(`[...document.querySelectorAll('.footer-links a, .footer-links button')].map((e) => { const r = e.getBoundingClientRect(); return [e.textContent, Math.round(r.height), Math.round(r.left), Math.round(r.right)]; })`);
+    check('on a phone the footer\'s project links fit the width and are at least 24 px tall', footer.length === 4
+      && footer.every(([, height, left, right]) => height >= 24 && left >= 0 && right <= 390), JSON.stringify(footer));
     const vb = await page.eval("document.querySelector('.map-svg').getAttribute('viewBox')");
     check('phone atlas uses a scalable overview', vb === '0 0 760 430', vb);
     await openPlaces(page, 'Fractured Peaks');

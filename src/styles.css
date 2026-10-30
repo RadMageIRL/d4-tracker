@@ -444,6 +444,8 @@ details.later-predictions ul { margin: 4px 0 0; padding: 0; list-style: none; di
 .season .muted { color: var(--text-dim); font-size: 13px; }
 .season .window { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 8px; }
 .season .window.running strong { color: var(--ok); }
+.season .past-windows { margin-bottom: 10px; }
+.season .past-windows .window { border: 0; padding: 0; margin: 6px 0 0; font-size: 13px; }
 .season details { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 8px; }
 .season summary { cursor: pointer; font-size: 14px; margin-bottom: 6px; }
 .season a { color: var(--text-dim); }
@@ -561,8 +563,8 @@ footer {
 }
 footer p { margin: 2px 0; }
 footer a { color: var(--text-dim); }
-/* Share, feedback and coffee: each at least 24px tall, so they are easy to tap. */
-.footer-links { line-height: 24px; }
+/* Source, share, feedback and coffee, last in the footer: each at least 24px tall, so they are easy to tap. */
+.footer-links { line-height: 24px; margin-top: 4px; }
 .footer-links a, .footer-links button.link { display: inline-block; padding: 0 2px; }
 
 /* Compact mode: just the three countdowns, for a narrow second-monitor window. */

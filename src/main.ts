@@ -19,7 +19,7 @@ import { radarLights, type RadarLight } from './engine/radar';
 import { activeOccurrence, lastStart, nextStart } from './engine/segments';
 import { dueReminders, type ReminderRule, type ScheduleMap } from './engine/reminders';
 import { daysSince } from './engine/seasons';
-import { tabTitle } from './engine/title';
+import { documentTitle } from './engine/title';
 import { anchorEvidence, anchorProgress } from './engine/verification';
 import { loadNews, saveNews } from './store/news';
 import { loadObservations, saveObservations } from './store/observations';
@@ -75,6 +75,8 @@ let lastClockCheck = -Infinity;
 // A pop-out window (opened by the Pop out button) is always compact, without changing the saved
 // preference of the main window.
 const popout = location.hash === '#compact';
+/** The title in index.html, kept while the main window is in view. */
+const PAGE_TITLE = document.title;
 
 /** The browser's zone, read each time: it changes if the player changes the system time zone. */
 function localZone(): string {
@@ -602,7 +604,7 @@ function render(): void {
   const sub = byId('clock-sub');
   setText(sub, `${zoneName(c.nowMs, c.timeZone)} · ${other}${clock?.applied ? ' · corrected' : ''}`);
   sub.classList.toggle('warn', !!clock?.applied);
-  const title = tabTitle(shown, prefs.title, document.visibilityState === 'visible');
+  const title = documentTitle(shown, prefs.title, document.visibilityState === 'visible', popout, PAGE_TITLE);
   if (document.title !== title) document.title = title;
   checkReminders(c.nowMs, statuses);
 }
