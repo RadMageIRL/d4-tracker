@@ -573,7 +573,7 @@ function render(): void {
   for (const st of statuses) {
     cards.get(st.kind)?.update(st, c, {
       isNext: soonest?.kind === st.kind,
-      checkedDaysAgo: daysSince(st.definition.checkedOn, c.nowMs),
+      checkedDaysAgo: daysSince(st.definition.checkedOn, c.nowMs, c.timeZone),
       sightings: timingSummary(allSightings, st.definition.segments, st.kind),
       anchorProgress: anchorProgress(anchorEvidence(allSightings, st.definition.segments, st.kind)),
       orders: orderNotes(st.kind, c.nowMs, c.timeZone),

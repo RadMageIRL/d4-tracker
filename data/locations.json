@@ -85,7 +85,7 @@
     { "region": "nahantu", "name": "Siege of Chakhir Ruins", "confidence": "inferred", "note": "An expansion Legion inside the Chakhir Stronghold, which a party must have conquered. Runs alongside the base-game Legion.", "sources": ["community-legion-expansion", "game-files-legion"] },
     { "region": "nahantu", "name": "Of Souls and Spirits", "confidence": "inferred", "note": "An expansion Legion: an escort, guarding basins while they gather souls. Guides call it the Viz-jun Legion or the Basin of Souls. Runs alongside the base-game Legion.", "sources": ["community-legion-expansion", "community-legion", "game-files-legion"] },
     { "region": "skovos", "name": "Pirate Invasion", "confidence": "inferred", "note": "An expansion Legion: defend a village against waves of pirates. Reached from Lycander or Philios. Runs alongside the base-game Legion.", "sources": ["game-files-legion", "community-legion-skovos"] },
-    { "region": "skovos", "name": "Cosmic Archives", "confidence": "inferred", "note": "An expansion Legion inside the Cosmic Archives Stronghold, between Celestia and Skartara, which a party must have conquered. Runs alongside the base-game Legion.", "sources": ["game-files-legion", "community-legion-skovos"] }
+    { "region": "skovos", "name": "Cosmic Archives", "confidence": "confirmed", "note": "An expansion Legion inside the Cosmic Archives Stronghold, between Celestia and Skartara, which a party must have conquered. Seen in game there repeatedly. Runs alongside the base-game Legion.", "sources": ["observation-cosmic-archives", "game-files-legion", "community-legion-skovos"] }
   ],
   "chestTypes": [
     {"id": "mystery", "name": "Tortured Gift of Mysteries", "confidence": "confirmed", "relocatesAtMinutes": [30], "note": "The orange \"?\" chest: 250 Aberrant Cinders in Torment, 75 below it. Players in 2026 report two per Helltide, one in each part of it, moving to another spot about half an hour in (community reports, not documented by Blizzard), so a mark lasts until then.", "sources": ["blizzard-1.1.0a-mysteries", "community-chests"]},
@@ -167,6 +167,10 @@
     "game-files-legion": {
       "kind": "community",
       "title": "The game's own Legion list in a community extraction of the patch 3.2.3 client files: one Legion bounty per site, twelve in all, two in Nahantu (Siege of Chakhir Ruins, Of Souls and Spirits) and two in Skovos (Pirate Invasion, Cosmic Archives) (research 2026-10-24); not documented by Blizzard"
+    },
+    "observation-cosmic-archives": {
+      "kind": "observation",
+      "title": "The Cosmic Archives Legion seen in game at this site, repeatedly, once its stronghold was cleared (own observations, recorded 2026-11-13)"
     },
     "community-legion-skovos": {
       "kind": "community",

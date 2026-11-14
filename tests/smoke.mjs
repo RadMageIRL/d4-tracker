@@ -627,6 +627,18 @@ try {
       JSON.stringify(after.past) === JSON.stringify(['Season 16 PTR (3.3.0, PC only) Oct 27, 2026 to Nov 3, 2026 · ended · announcement']), JSON.stringify(after.past));
   }
 
+  // 5k. "Checked ..." counts calendar days in the viewer's zone: late in the evening of the check
+  // date, when UTC is already on the next day, the cards still say today.
+  {
+    const checkedOn = JSON.parse(readFileSync(join(root, '..', 'data', 'events.json'), 'utf8')).checkedOn;
+    const evening = new Date(Date.parse(`${checkedOn}T00:30:00Z`) + 86400000).toISOString(); // 6:30 PM CST on the check date
+    const checked = (page) => page.eval("[...document.querySelectorAll('.event .checked')].map((e) => e.textContent).join('|')");
+    const chicago = await checked(await open(evening, { timezone: 'America/Chicago', prefs: { zone: 'local' } }));
+    check('the evening of the check date reads "Checked today" where it is still that date', chicago === 'Checked today|Checked today|Checked today', chicago);
+    const tokyo = await checked(await open(evening, { timezone: 'Asia/Tokyo', prefs: { zone: 'local' } }));
+    check('and "Checked 1 day ago" where the date has moved on', tokyo === 'Checked 1 day ago|Checked 1 day ago|Checked 1 day ago', tokyo);
+  }
+
   // 6. Opened straight from disk (file://), with no web server.
   {
     const page = await chrome.newPage();

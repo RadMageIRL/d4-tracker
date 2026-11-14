@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.7.7 (2026-11-13)
+
+- "Checked today" is judged by your own calendar date. The cards counted the days since the rules
+  were last checked from midnight UTC, so on the evening of a check day in the Americas they
+  already said "Checked 1 day ago". They now compare the check date with today's date in the time
+  zone the page is showing. The schedules and countdowns are not involved.
+- Cosmic Archives, the Skovos Legion site, is marked Confirmed in the data: it has been seen in
+  game there repeatedly since its stronghold was cleared. Its turn in the expansion Legion order
+  is still labeled Predicted, and the page shows it as before.
+- The rules were checked again on November 13, 2026, against Blizzard's own pages: the Helltide,
+  World Boss and Legion intervals, the Season 16 Helltide change in the 3.3.0 PTR notes, and the
+  season dates. Nothing changed, so the cards and the season panel now say they were checked on
+  that day instead of October 23.
+- Blizzard has not announced when Season 15 ends or Season 16 starts, so the season panel still
+  says so, and the Helltide schedule stays every hour on the hour. The 3.3.0 PTR ended on
+  November 3 and sits under Past seasons.
+- The README screenshot is v0.7.7.
+- Unchanged: the schedules, every prediction and its label, the radar, Coming up, stars, done
+  marks, reminders, Add to calendar and Latest news.
+
 ## v0.7.6 (2026-10-30)
 
 - The page keeps its own title (Diablo IV Tracker - Helltide, World Boss and Legion Timers |

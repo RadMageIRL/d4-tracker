@@ -8,7 +8,7 @@ browser from rules kept in this repository; it does not depend on any other trac
 
 Live at https://radmagelabs.com/d4/
 
-![Diablo IV Tracker v0.7.6 at 8:21 PM UTC on a first visit: the Latest news bar from Blizzard News, closed, above the cards; an active Helltide with 33:47 left, predicted in Fractured Peaks and Skovos, which the Sanctuary Event Radar outlines in red; the World Boss in 38:47 with its predicted boss, Wandering Death, a second World Boss in an expansion region, a Mark done link on the last spawn and a prompt to check the in-game map for boss and location; the next Legion in 8:47 with its six candidate sites folded, four base-game and two expansion, and a prompt to check the in-game map; six hours of coming-up starts with a how-far-ahead dropdown, Add to calendar, and All, starred, Helltide, World Boss and Legion picks, each Legion with its predicted expansion region; the empty sightings log; the Season 15 panel with the 3.3.0 PTR running; and the footer, ending with Source on GitHub, Share, Feedback and Buy me a coffee](screenshots/dashboard.png)
+![Diablo IV Tracker v0.7.7 at 8:21 PM UTC on a first visit: the Latest news bar from Blizzard News, closed, above the cards; an active Helltide with 33:47 left, predicted in Scosglen and Skovos, which the Sanctuary Event Radar outlines in red; the World Boss in 38:47 with a second World Boss in an expansion region, a Mark done link on the last spawn and a prompt to check the in-game map for boss and location; the next Legion in 23:47 with its six candidate sites folded, four base-game and two expansion; each card marked Checked today; six hours of coming-up starts with a how-far-ahead dropdown, Add to calendar, and All, starred, Helltide, World Boss and Legion picks, each Legion with its predicted expansion region; the empty sightings log; the Season 15 panel with dates checked 2026-11-13 and the ended 3.3.0 PTR folded under Past seasons; and the footer, ending with Source on GitHub, Share, Feedback and Buy me a coffee](screenshots/dashboard.png)
 
 ## What it shows
 
@@ -127,7 +127,8 @@ Chakhir Ruins, Of Souls and Spirits in Nahantu; Cosmic Archives, Pirate Invasion
 to in-game checks. The predicted one is listed first, labeled Predicted, then the other expansion
 site of that group's turns; neither lights anything on the radar. Cosmic Archives shows in game
 only once its stronghold is cleared: its turns showed no second Legion before that, and it appeared
-at its predicted turn after. One you log as seen shows beside the candidates instead.
+at its predicted turn after. It has been seen in game there repeatedly since, so the site itself is
+Confirmed; its turn in the order stays Predicted. One you log as seen shows beside the candidates instead.
 
 Without these models in the data, the tracker looks for a repeating order in your own sightings
 instead. Such an order is never Confirmed, however many sightings fit: only Blizzard's own words

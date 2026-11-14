@@ -107,6 +107,18 @@ describe('the checks catch bad edits', () => {
     expect(problems).toMatch(/unknown source nowhere/);
   });
 
+  it('confirms the Cosmic Archives Legion site by in-game observation, and only that site', () => {
+    const site = LOCATIONS.legionSites.find((s) => s.name === 'Cosmic Archives')!;
+    expect(site.confidence).toBe('confirmed');
+    expect(site.sources.some((id) => LOCATIONS.sources[id]?.kind === 'observation')).toBe(true);
+    expect(LOCATIONS.legionSites.filter((s) => s.confidence === 'confirmed').map((s) => s.name)).toEqual(['Cosmic Archives']);
+    // Without the observation the site cannot stay confirmed.
+    const bad: LocationsFile = clone(LOCATIONS);
+    const copy = bad.legionSites.find((s) => s.name === 'Cosmic Archives')!;
+    copy.sources = copy.sources.filter((id) => bad.sources[id]?.kind !== 'observation');
+    expect(checkLocations(bad).join()).toMatch(/confirmed needs a Blizzard source or our own observation/);
+  });
+
   it('rejects a confirmed arena backed only by a community list', () => {
     const bad: LocationsFile = clone(LOCATIONS);
     bad.worldBossArenas[0]!.confidence = 'confirmed';

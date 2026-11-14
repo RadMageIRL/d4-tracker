@@ -115,7 +115,11 @@ export function validateFeed(feed: SeasonFeed): string[] {
   return problems;
 }
 
-/** Whole days since a YYYY-MM-DD check date, for "checked 12 days ago". */
-export function daysSince(date: string, nowMs: number): number {
-  return Math.floor((nowMs - Date.parse(`${date}T00:00:00Z`)) / DAY);
+/**
+ * Whole calendar days from a YYYY-MM-DD check date to today's date in the viewer's zone, for
+ * "checked 12 days ago". Both are calendar dates: an evening check must not read "1 day ago" the
+ * same evening because UTC has passed midnight.
+ */
+export function daysSince(date: string, nowMs: number, timeZone: string): number {
+  return daysBetween(date, dayKey(nowMs, timeZone));
 }

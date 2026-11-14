@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SEASONS as SEASON_FEED } from '../src/data';
 import type { SeasonsFile as SeasonFeed } from '../src/data/schema';
-import { daysBetween, seasonStartMs, seasonView, validateFeed, windowState } from '../src/engine/seasons';
+import { daysBetween, daysSince, seasonStartMs, seasonView, validateFeed, windowState } from '../src/engine/seasons';
 
 const s15 = Date.parse('2026-09-15T16:30:00Z');
 
@@ -85,6 +85,18 @@ describe('history', () => {
   it('measures days by calendar date', () => {
     expect(daysBetween('2026-06-30', '2026-09-15')).toBe(77);
     expect(daysBetween('2024-02-28', '2024-03-01')).toBe(2); // leap year
+  });
+
+  it('counts days since a check date by the calendar date in the viewer\'s zone', () => {
+    // 6:30 PM CST on November 13 is already November 14 in UTC: still the check date in Chicago.
+    const evening = Date.parse('2026-11-14T00:30:00Z');
+    expect(daysSince('2026-11-13', evening, 'America/Chicago')).toBe(0);
+    expect(daysSince('2026-11-13', evening, 'UTC')).toBe(1);
+    expect(daysSince('2026-11-13', evening, 'Asia/Tokyo')).toBe(1);
+    // The count turns over at local midnight, not at UTC midnight.
+    expect(daysSince('2026-11-13', Date.parse('2026-11-14T05:59:00Z'), 'America/Chicago')).toBe(0);
+    expect(daysSince('2026-11-13', Date.parse('2026-11-14T06:00:00Z'), 'America/Chicago')).toBe(1);
+    expect(daysSince('2026-10-23', evening, 'America/Chicago')).toBe(21); // across the fall-back day
   });
 
   it('starts a date-only season no later than its Pacific midnight', () => {
