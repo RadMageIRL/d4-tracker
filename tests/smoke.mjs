@@ -118,6 +118,7 @@ const sharedStarts = (event) => SHARED.filter((o) => o.event === event && o.timi
 function progressText(starts) {
   const s = new Set(starts);
   const days = new Set([...s].map((x) => x.slice(0, 10)));
+  if (s.size >= 3 && days.size >= 2) return `${s.size} in-game starts on ${days.size} days match the schedule.`;
   return `${Math.min(s.size, 3)} of 3 matching in-game starts, on ${Math.min(days.size, 2)} of 2 days`;
 }
 const wbBlock = text('#sightings-panel .sight-summary > div:first-child');
@@ -180,7 +181,19 @@ try {
     check('each Unknown takes one line', rows.every((r) => r.height <= r.line * 1.2), JSON.stringify(rows.map((r) => [r.height, r.line])));
     const about = await page.eval(`document.querySelector('.event[data-kind="worldBoss"] details.about').textContent`);
     check('About says where the World Boss prediction comes from and until when', about.includes('Boss: Predicted') && about.includes('Pinned to a spawn on Oct 24, 2026, predicted through Oct 31, 2026'), about.slice(-700));
-    check('an inferred start time shows what confirms it', about.includes(progressText(sharedStarts('worldBoss'))), about.slice(0, 400));
+    check('a start time confirmed in game says so, with its evidence and no progress line',
+      about.includes('Start time: Confirmed') && about.includes('checked in game: 3 spawns on 2 UTC days') &&
+      about.includes('read from the in-game countdown') && !about.includes('matching in-game starts, on'), about.slice(0, 600));
+    const legionAbout = await page.eval(`document.querySelector('.event[data-kind="legion"] details.about').textContent`);
+    check('the Legion start time is confirmed in game too, its pill and its note', legionAbout.includes('Start time: Confirmed') &&
+      legionAbout.includes('checked in game: 3 starts on 2 UTC days') && !legionAbout.includes('matching in-game starts, on'), legionAbout.slice(0, 600));
+    const panelOrders = await page.eval(`[...document.querySelectorAll('#sightings-panel .sight-summary li .badge')].map(b => b.textContent)`);
+    const cardOrders = await page.eval(`[...document.querySelectorAll('.event details.about .order-note .badge')].map(b => b.textContent)`);
+    check('a first visit keeps the order notes out of the Sightings panel; each card still explains them',
+      panelOrders.length === 0 && cardOrders.includes('Boss: Predicted') && cardOrders.includes('Expansion Legion: Predicted'),
+      `${JSON.stringify(panelOrders)} / ${JSON.stringify(cardOrders)}`);
+    const startPills = await page.eval(`[...document.querySelectorAll('.event .trust .badge')].map(b => b.textContent).filter(t => t.startsWith('Start time'))`);
+    check('every card\'s Start time pill reads Confirmed', JSON.stringify(startPills) === JSON.stringify(['Start time: Confirmed', 'Start time: Confirmed', 'Start time: Confirmed']), JSON.stringify(startPills));
     const link = await page.eval(`[...document.querySelectorAll('footer a')].map(a => a.href)`);
     check('footer links to radmagelabs.com', link.includes('https://radmagelabs.com/'), JSON.stringify(link));
     const footerLinks = await page.eval(`[...document.querySelectorAll('footer .footer-links a, footer .footer-links button')].map(e => [e.textContent, e.getAttribute('href'), e.target || null, e.rel || null])`);
@@ -498,7 +511,13 @@ try {
     const summary = await page.eval(wbBlock);
     check('a sighting on the schedule agrees', summary.includes(`Start times: ${n} of ${n} agree with the schedule.`), summary.slice(0, 200));
     const about = await page.eval(`document.querySelector('.event[data-kind="worldBoss"] details.about').textContent`);
-    check('the card reports the sighting', about.includes(`Your sightings: ${n} of ${n} agree`), about.slice(-200));
+    check('the card reports the sighting', about.includes(`In-game sightings: ${n} of ${n} agree`), about.slice(-200));
+    const wbPanelOrders = await page.eval(`[...document.querySelectorAll('#sightings-panel .sight-summary > div:first-child li .badge')].map(b => b.textContent)`);
+    const wbCardOrders = await page.eval(`[...document.querySelectorAll('.event[data-kind="worldBoss"] details.about .order-note .badge')].map(b => b.textContent)`);
+    const lgPanelOrders = await page.eval(`[...document.querySelectorAll('#sightings-panel .sight-summary > div:nth-child(2) li .badge')].map(b => b.textContent)`);
+    check('an own World Boss sighting brings its order notes into the panel, labeled as on the card; the Legion block waits for its own',
+      wbPanelOrders.length > 0 && wbPanelOrders.every((b) => wbCardOrders.includes(b)) && !wbPanelOrders.some((b) => /: Inferred$/.test(b)) && lgPanelOrders.length === 0,
+      `${JSON.stringify(wbPanelOrders)} / ${JSON.stringify(wbCardOrders)} / ${JSON.stringify(lgPanelOrders)}`);
     await page.reload();
     await page.waitFor("document.querySelector('.event .big').textContent !== '--:--'");
     check('sightings survive a reload', (await page.eval(wbBlock)).includes(`${n} of ${n} agree`));

@@ -1,5 +1,5 @@
 {
-  "checkedOn": "2026-11-13",
+  "checkedOn": "2026-11-20",
   "events": [
     {
       "id": "helltide",
@@ -87,9 +87,14 @@
             ]
           },
           "phase": {
-            "confidence": "inferred",
-            "note": "Blizzard does not publish when the cycle starts. Spawns fall where Unix time mod 12600 = 10800: the times every community tracker and open-source project checked on 2026-10-23 agree on. Not yet observed in game.",
+            "confidence": "confirmed",
+            "note": "Blizzard does not publish when the cycle starts. Spawns fall where Unix time mod 12600 = 10800, checked in game: 3 spawns on 2 UTC days (2026-10-24 14:30 and 21:30, 2026-11-20 07:00), none against. Two were read from the in-game countdown, not watched as they began; the first was checked in game without its countdown noted.",
             "sources": [
+              {
+                "kind": "observation",
+                "title": "In-game start-time checks, published as start times only in data/observations.json",
+                "url": "https://github.com/RadMageIRL/d4-tracker/blob/main/data/observations.json"
+              },
               {
                 "kind": "community",
                 "title": "Community trackers and open-source projects agree on these times (checked 2026-10-23); not used at runtime. How start times are checked",
@@ -214,9 +219,14 @@
             ]
           },
           "phase": {
-            "confidence": "inferred",
-            "note": "Blizzard does not publish when the cycle starts. Starts fall where Unix time mod 1500 = 1200: the times every community tracker and open-source project checked on 2026-10-23 agree on. Not yet observed in game.",
+            "confidence": "confirmed",
+            "note": "Blizzard does not publish when the cycle starts. Starts fall where Unix time mod 1500 = 1200, checked in game: 3 starts on 2 UTC days (2026-10-24 19:55 and 20:45, 2026-11-20 06:05), none against. All three were read from the in-game countdown, not watched as they began.",
             "sources": [
+              {
+                "kind": "observation",
+                "title": "In-game start-time checks, published as start times only in data/observations.json",
+                "url": "https://github.com/RadMageIRL/d4-tracker/blob/main/data/observations.json"
+              },
               {
                 "kind": "community",
                 "title": "Community trackers and open-source projects agree on these times (checked 2026-10-23); not used at runtime. How start times are checked",

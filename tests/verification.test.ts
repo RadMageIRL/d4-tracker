@@ -9,6 +9,8 @@ const defs = eventDefinitions();
 const segs = (kind: 'worldBoss' | 'legion') => defs.find((d) => d.kind === kind)!.segments;
 // World Boss spawns calculated from the data: 2026-10-24 04:00 UTC and every 210 minutes.
 const wbSpawn = (n: number) => new Date(Date.UTC(2026, 9, 24, 4, 0) + n * 210 * MIN);
+// Legion starts: 2026-10-24 02:00 UTC and every 25 minutes.
+const lgStart = (n: number) => new Date(Date.UTC(2026, 9, 24, 2, 0) + n * 25 * MIN);
 
 let seq = 0;
 function start(at: Date, event: Observation['event'] = 'worldBoss', offsetMs = 0): Observation {
@@ -91,11 +93,26 @@ describe('the data refuses to over-claim', () => {
     return f;
   };
 
-  it('the shared sightings agree with the schedule, and are too few to confirm a start time', () => {
+  it('the shared sightings agree with the schedule and are enough to confirm both start times', () => {
     expect(crossCheck(EVENTS, SHARED_SIGHTINGS)).toEqual([]);
     for (const kind of ['worldBoss', 'legion'] as const) {
-      expect(anchorEvidence(SHARED_SIGHTINGS, segs(kind), kind).qualifies).toBe(false);
+      const e = anchorEvidence(SHARED_SIGHTINGS, segs(kind), kind);
+      expect(e).toEqual({ matching: 3, days: ['2026-10-24', '2026-11-20'], disagreeing: 0, qualifies: true });
     }
+  });
+
+  it('needs every shared start: without any one of them, Confirmed is refused', () => {
+    for (const o of SHARED_SIGHTINGS) {
+      const rest = SHARED_SIGHTINGS.filter((x) => x !== o);
+      expect(crossCheck(EVENTS, rest).join(), o.id).toMatch(new RegExp(`${o.event} schedule 0 phase: confirmed by sightings needs 3 matching starts on 2 days`));
+    }
+  });
+
+  it('refuses the shared data if a start is moved off the schedule, or no longer counts as seen', () => {
+    const moved = SHARED_SIGHTINGS.map((o, i) => (i === 0 ? { ...o, at: new Date(Date.parse(o.at) + 3 * MIN).toISOString() } : o));
+    expect(crossCheck(EVENTS, moved).join()).toMatch(/1 shared sighting\(s\) disagree with the schedule/);
+    const reported = SHARED_SIGHTINGS.map((o, i) => (i === 0 ? { ...o, provenance: 'reported' as const } : o));
+    expect(crossCheck(EVENTS, reported).join()).toMatch(/confirmed by sightings needs 3 matching starts on 2 days \(have 2 on 2\)/);
   });
 
   it('a shared record that came from a third party counts only once checked in game', () => {
@@ -113,7 +130,9 @@ describe('the data refuses to over-claim', () => {
   });
 
   it('accepts it with 3 matching starts on 2 days', () => {
-    expect(crossCheck(confirmBySightings(), [start(wbSpawn(0)), start(wbSpawn(1)), start(wbSpawn(7))])).toEqual([]);
+    // The Legion start time is confirmed by sightings too, so it needs its own three.
+    const legion = [0, 1, 60].map((n) => start(lgStart(n), 'legion'));
+    expect(crossCheck(confirmBySightings(), [start(wbSpawn(0)), start(wbSpawn(1)), start(wbSpawn(7)), ...legion])).toEqual([]);
   });
 
   it('rejects shared sightings that disagree with the schedule', () => {
@@ -159,7 +178,8 @@ describe('retiring the outside cross-check', () => {
   const covered = (['worldBoss', 'legion'] as const).every((k) => anchorEvidence(SHARED_SIGHTINGS, segs(k), k).qualifies);
 
   it('the outside fixture must be deleted once our own sightings confirm both anchors', () => {
-    // Today our sightings do not cover the anchors yet, so the fixture stays as a cross-check.
+    // Since v0.7.8 our sightings confirm both anchors, and the outside fixture is gone.
+    expect(covered).toBe(true);
     if (covered) expect(fixtures, 'our sightings now confirm both anchors: delete the outside cross-check fixture').toEqual([]);
     else expect(fixtures.length).toBeLessThanOrEqual(1);
   });

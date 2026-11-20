@@ -1,5 +1,32 @@
 # Changelog
 
+## v0.7.8 (2026-11-20)
+
+- The World Boss and Legion start times are Confirmed. Blizzard publishes the intervals but not
+  where the cycles start, so they were Inferred until my own in-game checks met the rule: at least
+  three matching starts on two different UTC days, none against. World Boss: October 24 at 14:30
+  and 21:30 UTC and November 20 at 07:00 UTC. Legion: October 24 at 19:55 and 20:45 UTC and
+  November 20 at 06:05 UTC. Five of the six were read from the in-game countdown, to the second,
+  not watched as they began; the cards say so.
+- Those six start times are published in `data/observations.json`, the start time only: no place,
+  boss, region or screenshot. The data checks still refuse Confirmed without them, and the tests
+  show that removing any one of them, or moving one off the schedule, brings the refusal back.
+- The outside cross-check (start times read from other trackers in October, kept only for the
+  tests until my own checks covered both start times) is deleted, as planned.
+- A card's About line counting sightings now reads "In-game sightings" instead of "Your
+  sightings", since it includes the shared start times. The Sightings panel shows its notes on the
+  boss order and the expansion Legion order only once you have logged a sighting of that event
+  yourself (the shared start times alone do not bring them out; each card's About this card
+  explains them either way), and labels each one as its card does ("Predicted", not "Inferred").
+- The rules and season dates were checked again on November 20, 2026, against Blizzard's own
+  pages. Nothing changed: no 3.3.0 patch notes, no Season 15 end or Season 16 start date, and the
+  Season 16 Helltide change is still only in the PTR notes, so the Helltide schedule stays every
+  hour on the hour. Blizzard's November 24 Developer Update livestream (11:00 AM PT) shows in
+  Latest news as Blizzard's newest post.
+- Unchanged: every schedule and countdown, the Helltide regions, the World Boss boss order and
+  its 7-day hold, the Legion site groups and the expansion Legion order (still Predicted), the
+  radar, Coming up, stars, done marks, reminders, Add to calendar and the pop-out.
+
 ## v0.7.7 (2026-11-13)
 
 - "Checked today" is judged by your own calendar date. The cards counted the days since the rules

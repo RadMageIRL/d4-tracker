@@ -355,7 +355,7 @@ export class EventCard {
     this.about.replaceChildren(...nodes(
       seg ? claimBlock('Interval', seg.interval, null) : null,
       seg ? claimBlock('Start time', seg.phase, phaseExtra) : null,
-      extras.sightings ? h('p', { class: 'claim' }, `Your sightings: ${extras.sightings}`) : null,
+      extras.sightings ? h('p', { class: 'claim' }, `In-game sightings: ${extras.sightings}`) : null,
       unknowns.length ? h('div', { class: 'claim' }, h('p', {}, badge('Location', 'unknown')),
         ...unknowns.map((u) => h('p', { class: 'source' }, u.reason))) : null,
       ...extras.orders.map((o) => h('div', { class: 'claim order-note' }, h('p', {}, badge(o.label, o.confidence, o.status), ` ${o.text}`))),

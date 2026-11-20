@@ -28,10 +28,14 @@ describe('the repository data passes its checks', () => {
     }
   });
 
-  it('marks the World Boss and Legion start times inferred until we observe them in game', () => {
+  it('marks the World Boss and Legion start times confirmed by our own in-game checks, not by Blizzard', () => {
     for (const id of ['worldBoss', 'legion'] as const) {
       const phase = EVENTS.events.find((e) => e.id === id)!.schedules[0]!.phase;
-      expect(phase.confidence).toBe('inferred');
+      expect(phase.confidence).toBe('confirmed');
+      expect(phase.sources.some((s) => s.kind === 'observation')).toBe(true);
+      // No Blizzard source, so the cross-check on the shared sightings is what allows it.
+      expect(phase.sources.some((s) => s.kind === 'blizzard')).toBe(false);
+      expect(phase.note).toMatch(/in-game countdown/);
     }
   });
 
@@ -42,8 +46,15 @@ describe('the repository data passes its checks', () => {
     }
   });
 
-  it('starts with no shared sightings and no chest locations (Dos keeps his own sightings private)', () => {
-    expect(SHARED_SIGHTINGS).toEqual([]);
+  it('shares start times only, and no chest locations (Dos keeps the rest of his sightings private)', () => {
+    expect(SHARED_SIGHTINGS.length).toBeGreaterThan(0);
+    for (const o of SHARED_SIGHTINGS) {
+      expect(Object.keys(o).sort()).toEqual(['at', 'event', 'id', 'note', 'recordedAt', 'timing']);
+      expect(['worldBoss', 'legion']).toContain(o.event);
+      expect(o.timing).toBe('start');
+      // Says how the start was read: from the in-game countdown, or that it was not recorded.
+      expect(o.note).toMatch(/^(Derived from the in-game countdown \(.+\), not a (start|spawn) watched|Checked in game at this spawn; how the start time was read was not recorded)\.$/);
+    }
     expect(LOCATIONS.helltideChests).toEqual([]);
   });
 });
@@ -51,7 +62,9 @@ describe('the repository data passes its checks', () => {
 describe('the checks catch bad edits', () => {
   it('rejects "confirmed" backed only by community sources', () => {
     const bad: EventsFile = clone(EVENTS);
-    bad.events[1]!.schedules[0]!.phase.confidence = 'confirmed';
+    const phase = bad.events[1]!.schedules[0]!.phase;
+    phase.confidence = 'confirmed';
+    phase.sources = phase.sources.filter((s) => s.kind === 'community');
     expect(checkEvents(bad).join()).toMatch(/worldBoss schedule 0 phase: confirmed needs a Blizzard source or our own in-game observation/);
   });
 

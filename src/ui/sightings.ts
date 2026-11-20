@@ -143,8 +143,10 @@ export class SightingsPanel {
       }
       const reported = mine.filter((o) => !isSeen(o)).length;
       if (reported) lines.push(h('li', {}, `${reported} secondhand report${reported === 1 ? '' : 's'}: shown on the cards for their own event, never used as evidence.`));
-      if (mine.length) {
-        for (const o of this.hooks.orders(kind)) lines.push(h('li', { class: o.confidence === 'unknown' ? '' : 'ok' }, badge(o.label, o.confidence), ` ${o.text}`));
+      // The order notes wait for the visitor's own sightings of this event: the shared start times
+      // alone do not bring them out. Each card's About this card explains them either way.
+      if (this.hooks.local().some((o) => o.event === event)) {
+        for (const o of this.hooks.orders(kind)) lines.push(h('li', { class: o.confidence === 'unknown' ? '' : 'ok' }, badge(o.label, o.confidence, o.status), ` ${o.text}`));
       }
       return h('div', {},
         h('h3', {}, `${EVENT_NAMES[event]} `, h('span', { class: 'note' }, `${mine.length} sighting${mine.length === 1 ? '' : 's'}`)),

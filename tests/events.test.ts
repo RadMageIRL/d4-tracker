@@ -2,22 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { OfflineDetailsSource } from '../src/adapters/offline-details';
 import { DETAIL_REASONS, eventDefinitions } from '../src/data';
 import { eventStatus, type EventDefinition, type EventKind } from '../src/engine/events';
-import { nextAfter, startsBetween, type PeriodicSchedule } from '../src/engine/schedule';
+import type { PeriodicSchedule } from '../src/engine/schedule';
 
 const EVENT_DEFINITIONS = eventDefinitions();
-// A temporary outside cross-check (see its _about). The tests over it run only while it exists, so
-// deleting it once our own sightings confirm the anchors leaves the rest of the suite intact.
-interface CrossCheck {
-  helltides_schedule: Record<'worldBoss' | 'legion' | 'helltide', string[]>;
-  diablo4_life_next_world_boss: string;
-  d4guides_world_boss_baseline_unix: number;
-  d4guides_world_boss_pending_seconds: number;
-  diablo_companion_anchor_unix: { worldBoss: number; legion: number };
-  helltime_anchor_unix: { worldBoss: number; legion: number };
-}
-const external = Object.values(import.meta.glob('./fixtures/external-crosscheck-*.json', { eager: true, import: 'default' }))[0] as
-  CrossCheck | undefined;
-
 const MIN = 60000;
 
 function def(kind: EventKind): EventDefinition {
@@ -28,35 +15,9 @@ function def(kind: EventKind): EventDefinition {
 const sched = (kind: EventKind): PeriodicSchedule => def(kind).segments[0]!.schedule;
 const offline = new OfflineDetailsSource(DETAIL_REASONS);
 
-describe.skipIf(!external)('outside cross-check: schedules agree with times other trackers published for 2026-10-24', () => {
-  const observed = external!;
-  for (const [kind, key] of [['worldBoss', 'worldBoss'], ['legion', 'legion'], ['helltide', 'helltide']] as const) {
-    it(`${kind}: every observed start is a calculated start, and none is missing in that span`, () => {
-      const times = observed.helltides_schedule[key].map((t) => Date.parse(t));
-      const first = Math.min(...times);
-      const last = Math.max(...times);
-      const calculated = startsBetween(sched(kind), first, last + 1).map((o) => o.startMs);
-      expect(calculated).toEqual([...times].sort((a, b) => a - b));
-    });
-  }
-
-  it('diablo4.life\'s next World Boss is a calculated spawn', () => {
-    const t = Date.parse(observed.diablo4_life_next_world_boss);
-    expect(nextAfter(sched('worldBoss'), t - 1).startMs).toBe(t);
-  });
-
-  it('d4guides\' baseline (pending start + 30 min) is a calculated spawn', () => {
-    const t = (observed.d4guides_world_boss_baseline_unix + observed.d4guides_world_boss_pending_seconds) * 1000;
-    expect(nextAfter(sched('worldBoss'), t - 1).startMs).toBe(t);
-  });
-
-  it('the open-source anchors (one from 2023, one from 2026) land on calculated starts', () => {
-    for (const a of [observed.diablo_companion_anchor_unix, observed.helltime_anchor_unix]) {
-      expect(nextAfter(sched('worldBoss'), a.worldBoss * 1000 - 1).startMs).toBe(a.worldBoss * 1000);
-      expect(nextAfter(sched('legion'), a.legion * 1000 - 1).startMs).toBe(a.legion * 1000);
-    }
-  });
-
+// The start times are checked against our own in-game sightings (tests/verification.test.ts); the
+// outside cross-check that stood in for them until then was deleted in v0.7.8.
+describe('the schedules follow the published cycle rules', () => {
   it('matches the published cycle rules: boss at unix mod 12600 = 10800, Legion at mod 1500 = 1200', () => {
     expect((sched('worldBoss').anchorMs / 1000) % 12600).toBe(10800);
     expect((sched('legion').anchorMs / 1000) % 1500).toBe(1200);

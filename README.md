@@ -8,7 +8,7 @@ browser from rules kept in this repository; it does not depend on any other trac
 
 Live at https://radmagelabs.com/d4/
 
-![Diablo IV Tracker v0.7.7 at 8:21 PM UTC on a first visit: the Latest news bar from Blizzard News, closed, above the cards; an active Helltide with 33:47 left, predicted in Scosglen and Skovos, which the Sanctuary Event Radar outlines in red; the World Boss in 38:47 with a second World Boss in an expansion region, a Mark done link on the last spawn and a prompt to check the in-game map for boss and location; the next Legion in 23:47 with its six candidate sites folded, four base-game and two expansion; each card marked Checked today; six hours of coming-up starts with a how-far-ahead dropdown, Add to calendar, and All, starred, Helltide, World Boss and Legion picks, each Legion with its predicted expansion region; the empty sightings log; the Season 15 panel with dates checked 2026-11-13 and the ended 3.3.0 PTR folded under Past seasons; and the footer, ending with Source on GitHub, Share, Feedback and Buy me a coffee](screenshots/dashboard.png)
+![Diablo IV Tracker v0.7.8 at 8:21 PM UTC on a first visit: the Latest news bar from Blizzard News, closed, above the cards; an active Helltide with 33:47 left, predicted in Hawezar and Skovos, which the Sanctuary Event Radar outlines in red; the World Boss in 38:47 with a second World Boss in an expansion region, a Mark done link on the last spawn and a prompt to check the in-game map for boss and location; the next Legion in 18:47 with its six candidate sites folded; each card marked Start time: Confirmed and Checked today; six hours of coming-up starts with a how-far-ahead dropdown, Add to calendar, and All, starred, Helltide, World Boss and Legion picks, each Legion with its predicted expansion region; the sightings log with the shared start-time checks, 3 of 3 agreeing with the schedule for the World Boss and for the Legion; the Season 15 panel with dates checked 2026-11-20 and Past seasons folded; and the footer, ending with Source on GitHub, Share, Feedback and Buy me a coffee](screenshots/dashboard.png)
 
 ## What it shows
 
@@ -85,13 +85,21 @@ Every piece of data carries one of three labels, shown as badges on the page:
 | Event | Interval | Where the cycle starts |
 | --- | --- | --- |
 | Helltide | every hour, active 55 minutes (Confirmed, patch 1.3.0) | on the hour, UTC (Confirmed, same note) |
-| World Boss | every 3.5 hours (Confirmed, patch 1.2.0) | Unix time mod 12600 = 10800, e.g. 04:00, 07:30, 11:00 UTC on 2026-10-24 (Inferred) |
-| Legion | every 25 minutes (Confirmed, patch 1.2.0) | Unix time mod 1500 = 1200, e.g. 01:35, 02:00, 02:25 UTC (Inferred) |
+| World Boss | every 3.5 hours (Confirmed, patch 1.2.0) | Unix time mod 12600 = 10800, e.g. 04:00, 07:30, 11:00 UTC on 2026-10-24 (Confirmed, in-game checks) |
+| Legion | every 25 minutes (Confirmed, patch 1.2.0) | Unix time mod 1500 = 1200, e.g. 01:35, 02:00, 02:25 UTC (Confirmed, in-game checks) |
 
-Blizzard publishes the intervals but not where the World Boss and Legion cycles start. Those start
-points are marked Inferred until our own in-game sightings confirm them: **at least three in-game
-starts that match the schedule, on at least two different (UTC) days, and none that disagree.** The
-data checks refuse a Confirmed start point without that, and the cards show the progress.
+Blizzard publishes the intervals but not where the World Boss and Legion cycles start. A start point
+is Confirmed only by my own in-game checks: **at least three in-game starts that match the
+schedule, on at least two different (UTC) days, and none that disagree.** Both met that on
+November 20, 2026:
+
+- World Boss: October 24 at 14:30 and 21:30 UTC, November 20 at 07:00 UTC.
+- Legion: October 24 at 19:55 and 20:45 UTC, November 20 at 06:05 UTC.
+
+Five of the six were read from the in-game countdown, to the second, not watched as they began;
+the October 24, 14:30 spawn was checked in game without its countdown noted. They are published in
+`data/observations.json`, start times only. The data checks refuse a Confirmed start point without
+enough of them, and a card shows the progress while a start point is still Inferred.
 
 Every fourth World Boss spawn (Unix time mod 50400 = 10800, every 14 hours) brings a second boss in
 an expansion region. That is Inferred: Blizzard does not document it, and every dated first-hand

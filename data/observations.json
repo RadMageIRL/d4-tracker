@@ -1,6 +1,55 @@
 {
   "format": "d4-tracker-observations",
-  "version": 1,
-  "exportedAt": "2026-10-23T00:00:00.000Z",
-  "observations": []
+  "version": 2,
+  "exportedAt": "2026-11-20T06:20:00.000Z",
+  "observations": [
+    {
+      "id": "shared-wb-20261024-1430",
+      "event": "worldBoss",
+      "at": "2026-10-24T14:30:00Z",
+      "timing": "start",
+      "note": "Checked in game at this spawn; how the start time was read was not recorded.",
+      "recordedAt": "2026-10-24T15:10:00Z"
+    },
+    {
+      "id": "shared-lg-20261024-1955",
+      "event": "legion",
+      "at": "2026-10-24T19:55:00Z",
+      "timing": "start",
+      "note": "Derived from the in-game countdown (2m 31s at 19:52:29 UTC), not a start watched.",
+      "recordedAt": "2026-10-24T20:05:00Z"
+    },
+    {
+      "id": "shared-lg-20261024-2045",
+      "event": "legion",
+      "at": "2026-10-24T20:45:00Z",
+      "timing": "start",
+      "note": "Derived from the in-game countdown (9m 36s at 20:35:24 UTC), not a start watched.",
+      "recordedAt": "2026-10-24T20:50:00Z"
+    },
+    {
+      "id": "shared-wb-20261024-2130",
+      "event": "worldBoss",
+      "at": "2026-10-24T21:30:00Z",
+      "timing": "start",
+      "note": "Derived from the in-game countdown (56m 35s at 20:33:25 UTC), not a spawn watched.",
+      "recordedAt": "2026-10-24T20:40:00Z"
+    },
+    {
+      "id": "shared-lg-20261120-0605",
+      "event": "legion",
+      "at": "2026-11-20T06:05:00Z",
+      "timing": "start",
+      "note": "Derived from the in-game countdown (1m 2s at 06:03:58 UTC), not a start watched.",
+      "recordedAt": "2026-11-20T06:10:00Z"
+    },
+    {
+      "id": "shared-wb-20261120-0700",
+      "event": "worldBoss",
+      "at": "2026-11-20T07:00:00Z",
+      "timing": "start",
+      "note": "Derived from the in-game countdown (56m 2s at 06:03:58 UTC), not a spawn watched.",
+      "recordedAt": "2026-11-20T06:10:00Z"
+    }
+  ]
 }
